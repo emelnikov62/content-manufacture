@@ -1,0 +1,283 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-feature: var(--feature);
+  --color-feature-foreground: var(--feature-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ======= Light theme — matches Прототип_все_экраны.html ======= */
+:root {
+  --background: #ECECE6;
+  --foreground: #17181A;
+  --card: #FFFFFF;
+  --card-foreground: #17181A;
+  --popover: #FFFFFF;
+  --popover-foreground: #17181A;
+  --primary: #C6F24E;
+  --primary-foreground: #16180D;
+  --secondary: #F4F4EE;
+  --secondary-foreground: #17181A;
+  --muted: #F4F4EE;
+  --muted-foreground: #71757C;
+  --accent: #C6F24E;
+  --accent-foreground: #16180D;
+  --destructive: #E0533D;
+  --success: #19A45B;
+  --warning: #C9892A;
+  --feature: #17181A;
+  --feature-foreground: #FFFFFF;
+  --border: #E8E8E1;
+  --input: #E8E8E1;
+  --ring: #B6E63B;
+  --chart-1: #C6F24E;
+  --chart-2: #19A45B;
+  --chart-3: #2AABEE;
+  --chart-4: #E4405F;
+  --chart-5: #C9892A;
+  --radius: 0.875rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #17181A;
+  --sidebar-primary: #17181A;
+  --sidebar-primary-foreground: #C6F24E;
+  --sidebar-accent: #F4F4EE;
+  --sidebar-accent-foreground: #17181A;
+  --sidebar-border: #E8E8E1;
+  --sidebar-ring: #B6E63B;
+  --shadow: 0 1px 2px rgba(20,20,20,.05), 0 10px 30px rgba(20,20,20,.05);
+}
+
+/* ======= Dark theme ======= */
+.dark {
+  --background: #101208;
+  --foreground: #EEF1E4;
+  --card: #1A1D14;
+  --card-foreground: #EEF1E4;
+  --popover: #1A1D14;
+  --popover-foreground: #EEF1E4;
+  --primary: #C6F24E;
+  --primary-foreground: #16180D;
+  --secondary: #23271B;
+  --secondary-foreground: #EEF1E4;
+  --muted: #23271B;
+  --muted-foreground: #9CA291;
+  --accent: #C6F24E;
+  --accent-foreground: #16180D;
+  --destructive: #F0795F;
+  --success: #37C470;
+  --warning: #E0A93E;
+  --feature: #0B0D07;
+  --feature-foreground: #F3F5EC;
+  --border: #2C3122;
+  --input: #2C3122;
+  --ring: #A9DB36;
+  --chart-1: #C6F24E;
+  --chart-2: #37C470;
+  --chart-3: #2AABEE;
+  --chart-4: #F0795F;
+  --chart-5: #E0A93E;
+  --sidebar: #1A1D14;
+  --sidebar-foreground: #EEF1E4;
+  --sidebar-primary: #C6F24E;
+  --sidebar-primary-foreground: #16180D;
+  --sidebar-accent: #23271B;
+  --sidebar-accent-foreground: #EEF1E4;
+  --sidebar-border: #2C3122;
+  --sidebar-ring: #A9DB36;
+  --shadow: 0 1px 2px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  html {
+    @apply font-sans;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+}
+
+/* ======= shadcn Card overrides ======= */
+[data-slot="card"] {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--shadow) !important;
+  padding: 18px !important;
+  ring: none !important;
+  --ring-width: 0 !important;
+}
+[data-slot="card"][data-size] {
+  --card-spacing: 18px !important;
+}
+/* Kill the ring shadcn adds */
+[data-slot="card"] {
+  --tw-ring-shadow: none !important;
+  box-shadow: var(--shadow) !important;
+}
+[data-slot="card-header"] {
+  padding: 0 !important;
+}
+[data-slot="card-content"] {
+  padding: 0 !important;
+}
+[data-slot="card-title"] {
+  font-weight: 750 !important;
+  font-size: 15px !important;
+}
+
+/* ======= shadcn Button overrides ======= */
+[data-slot="button"] {
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 11px 16px !important;
+  height: auto !important;
+  transition: transform .12s, box-shadow .12s !important;
+}
+[data-slot="button"]:hover {
+  transform: translateY(-1px);
+}
+/* size icon */
+[data-slot="button"][class*="size-icon"],
+[data-slot="button"][class*="h-7"],
+[data-slot="button"][class*="h-8"] {
+  padding: 7px !important;
+}
+
+/* ======= shadcn Badge overrides ======= */
+[data-slot="badge"] {
+  border-radius: 999px !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  padding: 4px 11px !important;
+}
+
+/* ======= shadcn Input overrides ======= */
+[data-slot="input"] {
+  border: 1px solid var(--border) !important;
+  border-radius: 11px !important;
+  padding: 9px 12px !important;
+  font-size: 13.5px !important;
+  height: auto !important;
+  background: var(--card) !important;
+}
+[data-slot="input"]:focus {
+  border-color: var(--ring) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent) !important;
+}
+
+/* ======= shadcn Dialog/Sheet overrides ======= */
+[data-slot="dialog-overlay"] {
+  background: rgba(0,0,0,.4) !important;
+}
+[data-slot="dialog-content"],
+[data-slot="sheet-content"] {
+  border-radius: 22px !important;
+  box-shadow: var(--shadow) !important;
+}
+
+/* ======= shadcn Select overrides ======= */
+[data-slot="select-trigger"] {
+  border: 1px solid var(--border) !important;
+  border-radius: 11px !important;
+  padding: 9px 12px !important;
+  font-size: 13.5px !important;
+  height: auto !important;
+  background: var(--card) !important;
+}
+[data-slot="select-content"] {
+  border-radius: 14px !important;
+  box-shadow: var(--shadow) !important;
+}
+
+/* ======= Pill status styles (from prototype) ======= */
+.pill-status {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.pill-draft { background: var(--secondary); color: var(--muted-foreground); }
+.pill-scheduled { background: color-mix(in srgb, var(--primary) 22%, var(--card)); color: var(--primary-foreground); }
+.pill-published { background: color-mix(in srgb, var(--success) 18%, var(--card)); color: var(--success); }
+.pill-error { background: color-mix(in srgb, var(--destructive) 16%, var(--card)); color: var(--destructive); }
+.pill-live { background: color-mix(in srgb, var(--warning) 18%, var(--card)); color: var(--warning); }
+
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pill-live .pill-dot {
+  animation: pulse-dot 1.3s infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ======= Utility classes ======= */
+.shadow-card {
+  box-shadow: var(--shadow);
+}
