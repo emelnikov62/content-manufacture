@@ -29,7 +29,6 @@ export default function LoginPage() {
         body,
       );
       setTokens(data.accessToken, data.refreshToken);
-      api.setToken(data.accessToken);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Ошибка авторизации');

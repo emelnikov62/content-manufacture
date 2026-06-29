@@ -158,7 +158,7 @@ export default function ComposerPage() {
       </div>
 
       {/* Editor grid: 1fr + 360px */}
-      <div className="grid grid-cols-[1fr_360px] gap-[18px] items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
         {/* Left column */}
         <div className="flex flex-col gap-[18px]">
           {/* Main card: networks + text + AI + per-network */}

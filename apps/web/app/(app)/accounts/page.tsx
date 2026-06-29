@@ -114,8 +114,8 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
-        <table className="w-full border-collapse text-[13px]">
+      <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px] overflow-x-auto">
+        <table className="w-full border-collapse text-[13px] min-w-[500px]">
           <thead>
             <tr>
               <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">

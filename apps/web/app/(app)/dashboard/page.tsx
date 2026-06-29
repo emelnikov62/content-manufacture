@@ -77,7 +77,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metrics row */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-feature text-feature-foreground rounded-[22px] p-4 min-h-[140px] flex flex-col">
           <span className="text-[12px] text-[#A8ADB4]">Всего постов</span>
           <span className="text-[28px] font-extrabold tracking-tight mt-1 leading-none">
@@ -118,7 +118,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Two column layout */}
-      <div className="grid grid-cols-[1fr_320px] gap-[18px] items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-[18px] items-start">
         {/* Left column */}
         <div className="flex flex-col gap-[18px]">
           {/* Schedule */}

@@ -62,7 +62,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-[18px] items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px] items-start">
         {/* Integrations */}
         <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
           <div className="flex items-center gap-2.5 mb-3.5">

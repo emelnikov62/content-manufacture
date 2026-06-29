@@ -3,8 +3,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { useState, useEffect } from 'react';
-import { useAppStore } from './store';
-import { api } from './api';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -16,10 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
-  const accessToken = useAppStore((s) => s.accessToken);
-
   useEffect(() => {
-    // Clean up stale _hydrated field from old store version
     try {
       const raw = localStorage.getItem('content-manufacture-store');
       if (raw) {
@@ -31,10 +26,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
     } catch {}
   }, []);
-
-  useEffect(() => {
-    api.setToken(accessToken);
-  }, [accessToken]);
 
   return (
     <QueryClientProvider client={queryClient}>

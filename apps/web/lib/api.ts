@@ -1,24 +1,21 @@
+import { useAppStore } from './store';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 class ApiClient {
-  private accessToken: string | null = null;
-
-  setToken(token: string | null) {
-    this.accessToken = token;
-  }
-
-  getToken() {
-    return this.accessToken;
+  private getToken(): string | null {
+    return useAppStore.getState().accessToken;
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const token = this.getToken();
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    if (this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     const res = await fetch(`${API_URL}/api${path}`, {
@@ -27,7 +24,7 @@ class ApiClient {
     });
 
     if (res.status === 401) {
-      this.accessToken = null;
+      useAppStore.getState().clearTokens();
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }

@@ -106,8 +106,8 @@ export default function PostsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-card border border-border rounded-[22px] shadow-card" style={{ padding: '8px 10px' }}>
-        <table className="w-full border-collapse text-[13px]">
+      <div className="bg-card border border-border rounded-[22px] shadow-card overflow-x-auto" style={{ padding: '8px 10px' }}>
+        <table className="w-full border-collapse text-[13px] min-w-[600px]">
           <thead>
             <tr>
               <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">

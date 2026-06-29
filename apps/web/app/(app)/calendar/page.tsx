@@ -121,7 +121,7 @@ export default function CalendarPage() {
           Выберите направление в боковом меню для просмотра календаря
         </div>
       ) : (
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1 md:gap-2 overflow-x-auto min-w-0">
           {DAYS.map((day) => (
             <div
               key={day}

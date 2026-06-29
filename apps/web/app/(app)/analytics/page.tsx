@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((m, i) => (
           <div
             key={i}
@@ -97,7 +97,7 @@ export default function AnalyticsPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-[1fr_320px] gap-[18px] items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-[18px] items-start">
         <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
           <div className="flex items-center gap-2.5 mb-3.5">
             <div className="w-[26px] h-[26px] rounded-[9px] bg-secondary grid place-items-center">

@@ -98,7 +98,7 @@ export default function StudioPage() {
       </div>
 
       {/* Main two-column layout */}
-      <div className="grid grid-cols-[380px_1fr] gap-[18px] items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-[18px] items-start">
         {/* Left: Prompt + Model config */}
         <div className="flex flex-col gap-[18px]">
           {/* Prompt */}

@@ -101,8 +101,8 @@ export default function MessagesPage() {
 
       {/* Three-panel inbox */}
       <div
-        className="grid border border-border rounded-[22px] overflow-hidden bg-card"
-        style={{ gridTemplateColumns: '300px 1fr 260px', minHeight: 560 }}
+        className="grid border border-border rounded-[22px] overflow-hidden bg-card max-md:grid-cols-1 md:grid-cols-[300px_1fr_260px]"
+        style={{ minHeight: 560 }}
       >
         {/* Left: conversations list */}
         <div className="flex flex-col min-w-0">
@@ -181,7 +181,7 @@ export default function MessagesPage() {
         </div>
 
         {/* Right: context panel */}
-        <div className="border-l border-border p-[18px]">
+        <div className="hidden md:block border-l border-border p-[18px]">
           <div className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-800 mb-2.5" />
           <div className="font-bold text-[14px]">{selected.name}</div>
           <div className="text-[12px] text-muted-foreground mb-3.5">

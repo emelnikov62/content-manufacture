@@ -9,6 +9,8 @@ interface AppState {
   setCurrentBrandId: (id: string | null) => void;
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  mobileMenuOpen: boolean;
+  toggleMobileMenu: () => void;
   accessToken: string | null;
   refreshToken: string | null;
   setTokens: (access: string, refresh: string) => void;
@@ -23,6 +25,9 @@ export const useAppStore = create<AppState>()(
       sidebarCollapsed: false,
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      mobileMenuOpen: false,
+      toggleMobileMenu: () =>
+        set((s) => ({ mobileMenuOpen: !s.mobileMenuOpen })),
       accessToken: null,
       refreshToken: null,
       setTokens: (access, refresh) =>

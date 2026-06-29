@@ -76,7 +76,7 @@ export default function FunnelsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-[18px] items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] items-start">
         {/* Table */}
         <div className="bg-card border border-border rounded-[22px] shadow-card" style={{ padding: '8px 10px' }}>
           <table className="w-full border-collapse text-[13px]">

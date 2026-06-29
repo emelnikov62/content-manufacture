@@ -10,15 +10,13 @@ import {
   BarChart3,
   Users,
   Settings,
-  ClipboardList,
   ChevronLeft,
-  LogOut,
-  Link2,
-  ChevronDown,
   MoreHorizontal,
   Sparkles,
   GitFork,
   MessageSquare,
+  Menu,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
@@ -44,46 +42,77 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; ba
   { href: '/settings', label: 'Настройки', icon: Settings },
 ];
 
+export function MobileMenuButton() {
+  const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen);
+  const toggleMobileMenu = useAppStore((s) => s.toggleMobileMenu);
+
+  return (
+    <button
+      onClick={toggleMobileMenu}
+      className="md:hidden flex h-[42px] w-[42px] items-center justify-center rounded-[13px] bg-card shadow-card text-foreground"
+    >
+      {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+    </button>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const clearTokens = useAppStore((s) => s.clearTokens);
+  const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen);
+  const toggleMobileMenu = useAppStore((s) => s.toggleMobileMenu);
 
   return (
     <TooltipProvider delay={0}>
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={toggleMobileMenu}
+        />
+      )}
+
       <aside
         className={cn(
-          'flex flex-col bg-card rounded-[22px] shadow-card transition-all duration-200 sticky top-4 h-[calc(100vh-32px)]',
-          collapsed ? 'w-[68px] p-3' : 'w-[248px] p-4',
+          'flex flex-col bg-card shadow-card transition-all duration-200',
+          'fixed top-0 left-0 h-full z-50 w-[280px] p-4 md:relative md:rounded-[22px] md:sticky md:top-4 md:h-[calc(100vh-32px)]',
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:translate-x-0',
+          collapsed ? 'md:w-[68px] md:p-3' : 'md:w-[248px] md:p-4',
         )}
       >
         {/* Brand logo */}
-        <div className="flex items-center gap-2.5 px-1.5 pb-1">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-feature text-primary font-extrabold text-lg">
+        <div className="flex items-center gap-2 px-1.5 pb-1">
+          <button
+            onClick={() => {
+              if (window.innerWidth < 768) return;
+              toggleSidebar();
+            }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-feature text-primary font-extrabold text-lg hover:brightness-90 transition-all"
+          >
             К
-          </div>
-          {!collapsed && (
+          </button>
+          {(!collapsed || mobileMenuOpen) && (
             <>
-              <span className="font-extrabold text-[16px]">Контент‑Завод</span>
-              <span className="ml-auto text-[10px] font-extrabold bg-primary text-primary-foreground px-[7px] py-[2px] rounded-full">
+              <span className="font-extrabold text-[15px] truncate max-md:block">Контент‑Завод</span>
+              <span className="ml-auto text-[10px] font-extrabold bg-primary text-primary-foreground px-[7px] py-[2px] rounded-full shrink-0">
                 PRO
               </span>
+              <button
+                onClick={toggleMobileMenu}
+                className="md:hidden ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </>
-          )}
-          {collapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="ml-auto text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="h-4 w-4 rotate-180" />
-            </button>
           )}
         </div>
 
         {/* Workspace switcher */}
-        {!collapsed && (
-          <div className="mt-3 mb-1">
+        {(!collapsed || mobileMenuOpen) && (
+          <div className="mt-3 mb-1 max-md:block">
             <BrandSwitcher />
           </div>
         )}
@@ -94,12 +123,12 @@ export function Sidebar() {
             {NAV_ITEMS.map((item) => {
               const isActive = pathname.startsWith(item.href);
 
-              if (collapsed) {
+              if (collapsed && !mobileMenuOpen) {
                 return (
                   <Tooltip key={item.href}>
                     <TooltipTrigger
                       className={cn(
-                        'flex items-center justify-center rounded-xl p-2.5 transition-colors cursor-pointer',
+                        'flex items-center justify-center rounded-xl p-2.5 transition-colors cursor-pointer max-md:hidden',
                         isActive
                           ? 'bg-feature text-feature-foreground'
                           : 'text-muted-foreground hover:bg-secondary',
@@ -122,6 +151,7 @@ export function Sidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => mobileMenuOpen && toggleMobileMenu()}
                   className={cn(
                     'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] font-semibold transition-colors',
                     isActive
@@ -148,7 +178,7 @@ export function Sidebar() {
         </ScrollArea>
 
         {/* Budget widget */}
-        {!collapsed && (
+        {(!collapsed || mobileMenuOpen) && (
           <div className="bg-secondary rounded-[14px] p-3 mt-2">
             <div className="flex justify-between items-baseline">
               <span className="text-[13px] font-bold">Бюджет</span>
@@ -164,11 +194,11 @@ export function Sidebar() {
         )}
 
         {/* User profile */}
-        <div className={cn('flex items-center gap-2.5 border-t border-border pt-3 mt-3', collapsed && 'justify-center')}>
+        <div className={cn('flex items-center gap-2.5 border-t border-border pt-3 mt-3', collapsed && !mobileMenuOpen && 'justify-center')}>
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-800 text-white text-xs font-bold">
             U
           </div>
-          {!collapsed && (
+          {(!collapsed || mobileMenuOpen) && (
             <>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-bold leading-tight truncate">Пользователь</p>
@@ -186,16 +216,6 @@ export function Sidebar() {
             </>
           )}
         </div>
-
-        {/* Collapse toggle for expanded state */}
-        {!collapsed && (
-          <button
-            onClick={toggleSidebar}
-            className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-        )}
       </aside>
     </TooltipProvider>
   );
