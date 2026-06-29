@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Контент-Завод — Дизайн-система</title>
+<style>
+  /* ============================================================
+     ДИЗАЙН-ТОКЕНЫ — две темы на общих переменных
+     ============================================================ */
+  :root, [data-theme="light"]{
+    --bg:#ECECE6;
+    --surface:#FFFFFF;
+    --surface-2:#F4F4EE;
+    --feature:#17181A;          /* акцентная «тёмная» карточка */
+    --feature-ink:#FFFFFF;
+    --ink:#17181A;
+    --muted:#71757C;
+    --on-accent:#16180D;
+    --line:#E8E8E1;
+    --accent:#C6F24E;
+    --accent-deep:#B6E63B;
+    --green:#19A45B;
+    --red:#E0533D;
+    --warn:#C9892A;
+    --shadow:0 1px 2px rgba(20,20,20,.05), 0 10px 30px rgba(20,20,20,.05);
+    --net-dark:#111315;         /* фон бейджей tiktok/threads/x */
+  }
+  [data-theme="dark"]{
+    --bg:#101208;
+    --surface:#1A1D14;
+    --surface-2:#23271B;
+    --feature:#0B0D07;
+    --feature-ink:#F3F5EC;
+    --ink:#EEF1E4;
+    --muted:#9CA291;
+    --on-accent:#16180D;
+    --line:#2C3122;
+    --accent:#C6F24E;
+    --accent-deep:#A9DB36;
+    --green:#37C470;
+    --red:#F0795F;
+    --warn:#E0A93E;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.4);
+    --net-dark:#2A2E22;
+  }
+  :root{
+    /* радиусы / отступы / типографика — общие для обеих тем */
+    --r:22px; --r-sm:14px; --r-xs:10px;
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:18px; --sp-6:24px; --sp-8:32px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Inter,Arial,sans-serif;
+    --ease:cubic-bezier(.22,.61,.36,1);
+    --ig:#E4405F; --tg:#2AABEE; --fb:#1877F2;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .35s var(--ease),color .35s var(--ease)}
+  ::selection{background:var(--accent);color:var(--on-accent)}
+  h1,h2,h3,h4{margin:0;letter-spacing:-.4px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+
+  /* ===== layout shell ===== */
+  .top{
+    position:sticky;top:0;z-index:20;
+    display:flex;align-items:center;gap:14px;
+    padding:16px 26px;background:color-mix(in srgb, var(--bg) 80%, transparent);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+  }
+  .top .mark{width:34px;height:34px;border-radius:10px;background:var(--feature);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:17px}
+  .top .ttl{font-weight:750;font-size:16px}
+  .top .ver{font-size:11px;font-weight:700;color:var(--on-accent);background:var(--accent);border-radius:999px;padding:2px 8px}
+  .top .sp{flex:1}
+  .toggle{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
+  .toggle button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:12.5px;padding:7px 14px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .toggle button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+
+  .wrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:30px;max-width:1180px;margin:0 auto;padding:30px 26px 80px}
+  .toc{position:sticky;top:88px;align-self:start;display:flex;flex-direction:column;gap:2px}
+  .toc a{color:var(--muted);font-weight:600;font-size:13px;padding:7px 10px;border-radius:9px}
+  .toc a:hover{background:var(--surface-2);color:var(--ink)}
+  .content{display:flex;flex-direction:column;gap:46px;min-width:0}
+
+  section{scroll-margin-top:90px}
+  .sec-h{display:flex;align-items:baseline;gap:12px;margin-bottom:6px}
+  .sec-h .n{font-size:12px;font-weight:800;color:var(--accent-deep);letter-spacing:.5px}
+  .sec-h h2{font-size:22px;font-weight:800}
+  .sec-d{color:var(--muted);font-size:13.5px;max-width:62ch;margin:0 0 20px}
+
+  .grid{display:grid;gap:14px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+  .feature{background:var(--feature);color:var(--feature-ink);border:0}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+  .lbl{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+
+  /* ===== swatches ===== */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .sw{border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden;background:var(--surface)}
+  .sw .chip{height:62px}
+  .sw .meta{padding:9px 11px}
+  .sw .meta b{display:block;font-size:12.5px;font-weight:700}
+  .sw .meta span{display:block;font-size:10.5px;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px}
+
+  /* ===== type scale ===== */
+  .type-row{display:flex;align-items:baseline;gap:16px;padding:12px 0;border-top:1px solid var(--line)}
+  .type-row:first-child{border-top:0}
+  .type-row .tag{width:120px;flex:0 0 120px;color:var(--muted);font-size:11.5px;font-weight:700}
+  .t-display{font-size:30px;font-weight:800;letter-spacing:-1px}
+  .t-h1{font-size:22px;font-weight:800;letter-spacing:-.5px}
+  .t-h2{font-size:17px;font-weight:750;letter-spacing:-.3px}
+  .t-title{font-size:15px;font-weight:700}
+  .t-body{font-size:14px;font-weight:450}
+  .t-cap{font-size:12px;font-weight:600;color:var(--muted)}
+  .t-data{font-size:24px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+
+  /* ===== scales (spacing/radius/shadow) ===== */
+  .scale{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end}
+  .scale .item{text-align:center}
+  .scale .box{background:var(--accent);border-radius:6px}
+  .scale .cap{font-size:11px;color:var(--muted);margin-top:6px;font-family:ui-monospace,monospace}
+  .radii{display:flex;gap:16px;flex-wrap:wrap}
+  .radii .r{width:84px;height:62px;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:end center}
+  .radii .r span{font-size:10.5px;color:var(--muted);font-family:ui-monospace,monospace;padding:4px}
+  .shadows{display:flex;gap:22px;flex-wrap:wrap}
+  .shadows .s{width:120px;height:74px;background:var(--surface);border-radius:14px}
+
+  /* ===== buttons ===== */
+  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .btn{font:inherit;font-weight:700;font-size:13px;border-radius:12px;padding:11px 16px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);transition:transform .12s var(--ease),box-shadow .12s,background .15s}
+  .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .btn.primary{background:var(--accent);border-color:var(--accent-deep);color:var(--on-accent)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--ink)}
+  .btn.ghost:hover{background:var(--surface-2);box-shadow:none;transform:none}
+  .btn.sm{padding:7px 12px;font-size:12px;border-radius:10px}
+  .btn[disabled]{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+  .iconbtn{width:42px;height:42px;border-radius:13px;background:var(--surface);border:1px solid var(--line);cursor:pointer;display:grid;place-items:center;color:var(--ink);position:relative}
+  .iconbtn .nb{position:absolute;top:-4px;right:-4px;background:var(--accent);color:var(--on-accent);font-size:10px;font-weight:800;border-radius:999px;min-width:18px;height:18px;display:grid;place-items:center;border:2px solid var(--bg)}
+
+  /* ===== inputs ===== */
+  .field{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 13px;max-width:360px}
+  .field input{border:0;outline:0;background:transparent;flex:1;font:inherit;font-size:13.5px;color:var(--ink)}
+  .field .kbd{font-size:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:2px 6px;color:var(--muted)}
+  .field:focus-within{border-color:var(--accent-deep);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%, transparent)}
+  select.field{appearance:none;font-weight:600;color:var(--ink)}
+
+  /* ===== status & network badges ===== */
+  .pill{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+  .pd{width:7px;height:7px;border-radius:50%}
+  .pill.draft{background:var(--surface-2);color:var(--muted)} .pill.draft .pd{background:var(--muted)}
+  .pill.sched{background:color-mix(in srgb,var(--accent) 22%, var(--surface));color:var(--on-accent)} .pill.sched .pd{background:var(--accent-deep)}
+  .pill.pub{background:color-mix(in srgb,var(--green) 18%, var(--surface));color:var(--green)} .pill.pub .pd{background:var(--green)}
+  .pill.err{background:color-mix(in srgb,var(--red) 16%, var(--surface));color:var(--red)} .pill.err .pd{background:var(--red)}
+  .pill.live{background:color-mix(in srgb,var(--warn) 18%, var(--surface));color:var(--warn)} .pill.live .pd{background:var(--warn);animation:pulse 1.3s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .net{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;color:#fff}
+  .net svg{width:14px;height:14px}
+  .net b{font-weight:800;font-size:13px}
+  .net.ig{background:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)}
+  .net.tt{background:var(--net-dark)} .net.tg{background:var(--tg)}
+  .net.th{background:var(--net-dark)} .net.fb{background:var(--fb)} .net.x{background:var(--net-dark)}
+
+  /* ===== metric & list patterns ===== */
+  .metric{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-height:130px;display:flex;flex-direction:column}
+  .metric.feat{background:var(--feature);color:var(--feature-ink);border:0}
+  .metric .ml{font-size:12px;color:var(--muted)}
+  .metric.feat .ml{color:#A8ADB4}
+  .metric .mv{font-size:28px;font-weight:800;letter-spacing:-1px;margin-top:5px}
+  .delta{font-size:11.5px;font-weight:700;color:var(--green)} .delta.dn{color:var(--red)}
+  .spark{margin-top:auto}
+
+  .lrow{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+  .lrow:first-child{border-top:0}
+  .lrow .t{flex:1;min-width:0}
+  .lrow .t b{display:block;font-size:13px;font-weight:700;line-height:1.15}
+  .lrow .t span{font-size:11px;color:var(--muted)}
+  .lrow .num{font-weight:750;font-size:13px;text-align:right}
+  .lrow .num em{display:block;font-style:normal;font-size:11px;color:var(--green);font-weight:700}
+  .time{font-size:12px;font-weight:700;color:var(--muted);width:40px;flex:0 0 40px}
+
+  /* nav item */
+  .navitem{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:12px;color:var(--ink);font-weight:600;font-size:13.5px}
+  .navitem .gl{color:var(--muted)}
+  .navitem:hover{background:var(--surface-2)}
+  .navitem.active{background:var(--feature);color:var(--feature-ink)}
+  .navitem.active .gl{color:var(--accent)}
+  .navitem .badge{margin-left:auto;background:var(--accent);color:var(--on-accent);font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
+
+  /* dataviz */
+  .bars{display:flex;align-items:flex-end;gap:4px;height:60px}
+  .bars i{flex:1;border-radius:4px;background:color-mix(in srgb,var(--ink) 18%, var(--surface))}
+  .bars i.a{background:var(--accent)}
+  .prog{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+  .prog i{display:block;height:100%;background:var(--accent)}
+  .perf{display:flex;align-items:flex-end;gap:8px;height:90px}
+  .perf .g{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%}
+  .perf .g i{width:8px;border-radius:4px}
+  .perf .g i.r{background:var(--ink)} .perf .g i.e{background:var(--accent)}
+
+  /* code block */
+  pre{background:var(--feature);color:#E7EAD9;border-radius:var(--r-sm);padding:16px 18px;overflow:auto;font-size:12px;line-height:1.6}
+  pre .c{color:#8A9272} pre .v{color:var(--accent)}
+
+  .note{font-size:12.5px;color:var(--muted);margin-top:12px}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .threecol{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .fourcol{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+
+  :focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px;border-radius:6px}
+  @media (max-width:900px){
+    .wrap{grid-template-columns:1fr}.toc{position:static;flex-direction:row;flex-wrap:wrap;overflow:auto}
+    .twocol,.threecol,.fourcol{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:560px){.twocol,.threecol,.fourcol{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+  <header class="top">
+    <div class="mark">К</div>
+    <div class="ttl">Контент‑Завод · Дизайн‑система</div>
+    <span class="ver">v1.0</span>
+    <div class="sp"></div>
+    <div class="toggle" role="group" aria-label="Тема">
+      <button id="bL" aria-pressed="true" onclick="setTheme('light')">☀︎ Светлая</button>
+      <button id="bD" aria-pressed="false" onclick="setTheme('dark')">☾ Тёмная</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <nav class="toc" aria-label="Разделы">
+      <a href="#tokens">Токены цвета</a>
+      <a href="#type">Типографика</a>
+      <a href="#scales">Отступы · радиусы · тени</a>
+      <a href="#motion">Движение</a>
+      <a href="#buttons">Кнопки</a>
+      <a href="#inputs">Поля</a>
+      <a href="#status">Статусы</a>
+      <a href="#networks">Сети</a>
+      <a href="#cards">Карточки</a>
+      <a href="#metric">Метрики</a>
+      <a href="#nav">Навигация</a>
+      <a href="#lists">Списки</a>
+      <a href="#dataviz">Графики</a>
+      <a href="#a11y">Доступность</a>
+      <a href="#css">Токены (CSS)</a>
+    </nav>
+
+    <main class="content">
+
+      <!-- intro -->
+      <section>
+        <div class="sec-h"><h2 style="font-size:26px">Лаймовая система — две темы</h2></div>
+        <p class="sec-d">Визуальный язык приложения: тёплый светлый фон или глубокий тёмный, единый лаймовый акцент (<code>#C6F24E</code>), скруглённые карточки и контрастные «акцентные» карточки. Все компоненты построены на CSS‑переменных — переключение темы вверху справа меняет одну переменную‑тему, не трогая разметку. Ниже — токены, компоненты с состояниями и заметки по доступности.</p>
+      </section>
+
+      <!-- COLOR TOKENS -->
+      <section id="tokens">
+        <div class="sec-h"><span class="n">01</span><h2>Токены цвета</h2></div>
+        <p class="sec-d">Семантические токены, а не «голые» хексы. Слева указано имя переменной, ниже — значения в светлой (L) и тёмной (D) теме. Свотчи живые — меняются вместе с темой.</p>
+
+        <div class="lbl">Поверхности</div>
+        <div class="swatches" style="margin-bottom:18px">
+          <div class="sw"><div class="chip" style="background:var(--bg)"></div><div class="meta"><b>--bg</b><span>L #ECECE6 · D #101208</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--surface)"></div><div class="meta"><b>--surface</b><span>L #FFFFFF · D #1A1D14</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--surface-2)"></div><div class="meta"><b>--surface-2</b><span>L #F4F4EE · D #23271B</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--feature)"></div><div class="meta"><b>--feature</b><span>L #17181A · D #0B0D07</span></div></div>
+        </div>
+
+        <div class="lbl">Акцент и текст</div>
+        <div class="swatches" style="margin-bottom:18px">
+          <div class="sw"><div class="chip" style="background:var(--accent)"></div><div class="meta"><b>--accent</b><span>#C6F24E (обе темы)</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--accent-deep)"></div><div class="meta"><b>--accent-deep</b><span>L #B6E63B · D #A9DB36</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--ink)"></div><div class="meta"><b>--ink</b><span>L #17181A · D #EEF1E4</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--muted)"></div><div class="meta"><b>--muted</b><span>L #71757C · D #9CA291</span></div></div>
+        </div>
+
+        <div class="lbl">Семантика и линии</div>
+        <div class="swatches">
+          <div class="sw"><div class="chip" style="background:var(--green)"></div><div class="meta"><b>--green</b><span>рост / успех</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--red)"></div><div class="meta"><b>--red</b><span>падение / ошибка</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--warn)"></div><div class="meta"><b>--warn</b><span>в процессе / внимание</span></div></div>
+          <div class="sw"><div class="chip" style="background:var(--line)"></div><div class="meta"><b>--line</b><span>границы / разделители</span></div></div>
+        </div>
+        <p class="note">Лайм — единственный акцент: используется для главных действий, активных состояний и данных. Не раскрашивать им всё подряд — сила в сдержанности.</p>
+      </section>
+
+      <!-- TYPOGRAPHY -->
+      <section id="type">
+        <div class="sec-h"><span class="n">02</span><h2>Типографика</h2></div>
+        <p class="sec-d">Один гротеск для всего, иерархия — через размер и вес. Числа — табличные (<code>tabular-nums</code>), чтобы метрики не «прыгали». Системный стек по умолчанию; в продакшене можно подключить характерный шрифт (Inter / Plus Jakarta Sans).</p>
+        <div class="panel">
+          <div class="type-row"><span class="tag">Display · 30/800</span><span class="t-display">Доброе утро, Иван</span></div>
+          <div class="type-row"><span class="tag">Heading 1 · 22/800</span><span class="t-h1">Эффективность контента</span></div>
+          <div class="type-row"><span class="tag">Heading 2 · 17/750</span><span class="t-h2">Очередь AI‑генерации</span></div>
+          <div class="type-row"><span class="tag">Title · 15/700</span><span class="t-title">Расписание на сегодня</span></div>
+          <div class="type-row"><span class="tag">Body · 14/450</span><span class="t-body">Вот что происходит с вашим контентом сегодня.</span></div>
+          <div class="type-row"><span class="tag">Caption · 12/600</span><span class="t-cap">к прошлому месяцу</span></div>
+          <div class="type-row"><span class="tag">Data · 24/800</span><span class="t-data">2.48M</span></div>
+        </div>
+      </section>
+
+      <!-- SCALES -->
+      <section id="scales">
+        <div class="sec-h"><span class="n">03</span><h2>Отступы · радиусы · тени</h2></div>
+        <p class="sec-d">Шаг отступов кратен 4. Радиусы — крупные и мягкие (фирменная черта). Тени мягкие в светлой теме, глубже в тёмной.</p>
+        <div class="panel" style="margin-bottom:14px">
+          <div class="lbl">Отступы (px)</div>
+          <div class="scale">
+            <div class="item"><div class="box" style="width:4px;height:4px"></div><div class="cap">4 · sp‑1</div></div>
+            <div class="item"><div class="box" style="width:8px;height:8px"></div><div class="cap">8 · sp‑2</div></div>
+            <div class="item"><div class="box" style="width:12px;height:12px"></div><div class="cap">12 · sp‑3</div></div>
+            <div class="item"><div class="box" style="width:16px;height:16px"></div><div class="cap">16 · sp‑4</div></div>
+            <div class="item"><div class="box" style="width:18px;height:18px"></div><div class="cap">18 · sp‑5</div></div>
+            <div class="item"><div class="box" style="width:24px;height:24px"></div><div class="cap">24 · sp‑6</div></div>
+            <div class="item"><div class="box" style="width:32px;height:32px"></div><div class="cap">32 · sp‑8</div></div>
+          </div>
+        </div>
+        <div class="twocol">
+          <div class="panel">
+            <div class="lbl">Радиусы</div>
+            <div class="radii">
+              <div class="r" style="border-radius:10px"><span>10 · xs</span></div>
+              <div class="r" style="border-radius:14px"><span>14 · sm</span></div>
+              <div class="r" style="border-radius:22px"><span>22 · base</span></div>
+              <div class="r" style="border-radius:999px"><span>999 · pill</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="lbl">Тени (elevation)</div>
+            <div class="shadows">
+              <div class="s" style="box-shadow:var(--shadow)"></div>
+              <div class="s" style="box-shadow:0 1px 2px rgba(0,0,0,.06)"></div>
+            </div>
+            <p class="note">base — карточки; flat — встроенные блоки/инпуты.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- MOTION -->
+      <section id="motion">
+        <div class="sec-h"><span class="n">04</span><h2>Движение</h2></div>
+        <p class="sec-d">Анимация служит смыслу: лёгкое поднятие карточки при наведении, плавная смена темы, пульс для статуса «в процессе». Длительности короткие; <code>prefers-reduced-motion</code> уважается.</p>
+        <div class="panel row" style="gap:24px">
+          <div><div class="lbl">Hover‑lift</div><button class="btn primary">Наведи на меня</button></div>
+          <div><div class="lbl">Theme · 350ms</div><span class="t-cap">переключи тему вверху</span></div>
+          <div><div class="lbl">Pulse</div><span class="pill live"><span class="pd"></span>В процессе</span></div>
+          <div><div class="lbl">Easing</div><code>cubic-bezier(.22,.61,.36,1)</code></div>
+        </div>
+      </section>
+
+      <!-- BUTTONS -->
+      <section id="buttons">
+        <div class="sec-h"><span class="n">05</span><h2>Кнопки</h2></div>
+        <p class="sec-d">Варианты: <b>primary</b> (главное действие, лайм) · <b>secondary</b> (контурная) · <b>ghost</b> (третичная) · <b>icon</b>. Размеры md / sm. На странице — ровно одна primary‑кнопка на смысловой блок.</p>
+        <div class="panel">
+          <div class="lbl">Варианты</div>
+          <div class="row" style="margin-bottom:18px">
+            <button class="btn primary">✎ Создать пост</button>
+            <button class="btn">✦ AI‑генерация</button>
+            <button class="btn ghost">Отмена</button>
+            <button class="iconbtn" aria-label="Уведомления">🔔<span class="nb">5</span></button>
+          </div>
+          <div class="lbl">Размеры и состояния</div>
+          <div class="row">
+            <button class="btn primary sm">Small</button>
+            <button class="btn primary">Medium</button>
+            <button class="btn primary" disabled>Disabled</button>
+            <button class="btn">Secondary</button>
+            <button class="btn" disabled>Disabled</button>
+          </div>
+          <p class="note">Фокус — видимая лаймовая обводка (Tab по кнопкам). Лейбл = действие: «Опубликовать» → тост «Опубликовано».</p>
+        </div>
+      </section>
+
+      <!-- INPUTS -->
+      <section id="inputs">
+        <div class="sec-h"><span class="n">06</span><h2>Поля ввода</h2></div>
+        <p class="sec-d">Спокойные в покое, лаймовый фокус‑ринг при активности. Плейсхолдеры подсказывают, а не дублируют лейбл.</p>
+        <div class="panel grid" style="gap:14px">
+          <div class="field"><span>⌕</span><input placeholder="Найти пост, медиа, аккаунт…"><span class="kbd">⌘K</span></div>
+          <div class="field"><input placeholder="Текст поста…"></div>
+          <select class="field"><option>Этот месяц</option><option>Эта неделя</option><option>Сегодня</option></select>
+        </div>
+      </section>
+
+      <!-- STATUS -->
+      <section id="status">
+        <div class="sec-h"><span class="n">07</span><h2>Статус‑бейджи</h2></div>
+        <p class="sec-d">Статус публикации и генерации кодируется цветом и точкой. Цвета — семантические токены, поэтому корректны в обеих темах.</p>
+        <div class="panel">
+          <div class="lbl">Публикация</div>
+          <div class="row" style="margin-bottom:18px">
+            <span class="pill draft"><span class="pd"></span>Черновик</span>
+            <span class="pill sched"><span class="pd"></span>Запланировано</span>
+            <span class="pill live"><span class="pd"></span>Публикуется</span>
+            <span class="pill pub"><span class="pd"></span>Опубликовано</span>
+            <span class="pill err"><span class="pd"></span>Ошибка</span>
+          </div>
+          <div class="lbl">AI‑генерация</div>
+          <div class="row">
+            <span class="pill live"><span class="pd"></span>Генерируется</span>
+            <span class="pill sched"><span class="pd"></span>В работе</span>
+            <span class="pill draft"><span class="pd"></span>В очереди</span>
+            <span class="pill pub"><span class="pd"></span>Готово</span>
+            <span class="pill err"><span class="pd"></span>Ошибка</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- NETWORKS -->
+      <section id="networks">
+        <div class="sec-h"><span class="n">08</span><h2>Бейджи сетей</h2></div>
+        <p class="sec-d">Единый размер и радиус, бренд‑цвет сети. Тёмные бейджи (TikTok / Threads / X) в тёмной теме автоматически осветляются, чтобы оставаться читаемыми. В продакшене иконки заменяются официальными.</p>
+        <div class="panel row" style="gap:14px">
+          <span class="net ig" title="Instagram"></span>
+          <span class="net tt" title="TikTok"></span>
+          <span class="net tg" title="Telegram"></span>
+          <span class="net th" title="Threads"></span>
+          <span class="net fb" title="Facebook"></span>
+          <span class="net x" title="X"></span>
+        </div>
+      </section>
+
+      <!-- CARDS -->
+      <section id="cards">
+        <div class="sec-h"><span class="n">09</span><h2>Карточки</h2></div>
+        <p class="sec-d">Базовая карточка — белая/тёмная поверхность, мягкая тень, крупный радиус. <b>Feature</b>‑карточка — контрастная «акцентная» поверхность для главных метрик и статусов.</p>
+        <div class="twocol">
+          <div class="card">
+            <div class="lbl">Базовая карточка</div>
+            <div class="t-h2" style="margin-bottom:4px">Заголовок секции</div>
+            <p class="t-body" style="color:var(--muted);margin:0">Контент, списки, графики. Используется для большинства блоков.</p>
+          </div>
+          <div class="card feature">
+            <div class="lbl" style="color:#A8ADB4">Feature‑карточка</div>
+            <div class="t-h2" style="margin-bottom:4px">Акцентный блок</div>
+            <p class="t-body" style="color:#C9CEC1;margin:0">Главная метрика, тренды, статус системы. Не более 1–2 на экран.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- METRICS -->
+      <section id="metric">
+        <div class="sec-h"><span class="n">10</span><h2>Метрик‑карточка</h2></div>
+        <p class="sec-d">Паттерн: лейбл → крупное число (data) → дельта со знаком → мини‑график. Дельта зелёная при росте, красная при падении.</p>
+        <div class="fourcol">
+          <div class="metric feat">
+            <div class="ml">Аудитория</div><div class="mv">2.48M</div>
+            <div><span class="delta">▲ 18.6%</span></div>
+            <div class="spark"><svg viewBox="0 0 200 40" width="100%" height="40" preserveAspectRatio="none"><polyline points="0,32 30,28 60,30 90,20 120,24 150,12 180,16 200,8" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg></div>
+          </div>
+          <div class="metric">
+            <div class="ml">Вовлечённость</div><div class="mv">5.72%</div>
+            <div><span class="delta">▲ 24.1%</span></div>
+            <div class="spark bars"><i style="height:40%"></i><i class="a" style="height:70%"></i><i style="height:35%"></i><i style="height:85%"></i><i class="a" style="height:55%"></i><i style="height:65%"></i></div>
+          </div>
+          <div class="metric">
+            <div class="ml">Постов за неделю</div><div class="mv">24 <span style="font-size:13px;color:var(--muted);font-weight:600">из 35</span></div>
+            <div class="spark"><div class="prog"><i style="width:68%"></i></div></div>
+          </div>
+          <div class="metric">
+            <div class="ml">AI‑генераций</div><div class="mv">342</div>
+            <div><span class="t-cap">в этом месяце</span></div>
+            <div class="spark"><svg viewBox="0 0 200 40" width="100%" height="40" preserveAspectRatio="none"><polyline points="0,28 30,30 60,20 90,26 120,16 150,22 180,12 200,8" fill="none" stroke="var(--accent-deep)" stroke-width="3" stroke-linecap="round"/></svg></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- NAV -->
+      <section id="nav">
+        <div class="sec-h"><span class="n">11</span><h2>Навигация</h2></div>
+        <p class="sec-d">Пункт меню: иконка + лейбл, опц. счётчик. Активный пункт — feature‑поверхность с лаймовой иконкой.</p>
+        <div class="panel" style="max-width:280px">
+          <div class="navitem active"><span class="gl">▦</span> Дашборд</div>
+          <div class="navitem"><span class="gl">✦</span> AI‑Студия</div>
+          <div class="navitem"><span class="gl">▤</span> Календарь</div>
+          <div class="navitem"><span class="gl">✉</span> Сообщения <span class="badge">12</span></div>
+        </div>
+      </section>
+
+      <!-- LISTS -->
+      <section id="lists">
+        <div class="sec-h"><span class="n">12</span><h2>Списки и строки</h2></div>
+        <p class="sec-d">Единый строчный паттерн для очереди генерации, расписания и аккаунтов: иконка/бейдж → заголовок+подпись → значение/статус справа. Разделители — <code>--line</code>.</p>
+        <div class="twocol">
+          <div class="card">
+            <div class="lbl">Аккаунты</div>
+            <div class="lrow"><span class="net ig"></span><div class="t"><b>@coffee.house</b><span>Instagram</span></div><div class="num">124K<em>▲ 12.4%</em></div></div>
+            <div class="lrow"><span class="net tt"></span><div class="t"><b>@coffee.house</b><span>TikTok</span></div><div class="num">89K<em>▲ 8.7%</em></div></div>
+            <div class="lrow"><span class="net tg"></span><div class="t"><b>Coffee House</b><span>Telegram</span></div><div class="num">12K<em>▲ 15.2%</em></div></div>
+          </div>
+          <div class="card">
+            <div class="lbl">Расписание</div>
+            <div class="lrow"><span class="time">09:00</span><span class="net ig"></span><div class="t"><b>Утренняя цитата</b><span>Instagram · Лента</span></div><span class="pill sched"><span class="pd"></span>План</span></div>
+            <div class="lrow"><span class="time">14:00</span><span class="net tg"></span><div class="t"><b>Совет дня</b><span>Telegram · Канал</span></div><span class="pill sched"><span class="pd"></span>План</span></div>
+            <div class="lrow"><span class="time">18:00</span><span class="net fb"></span><div class="t"><b>Выходное настроение</b><span>Facebook · Страница</span></div><span class="pill sched"><span class="pd"></span>План</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- DATAVIZ -->
+      <section id="dataviz">
+        <div class="sec-h"><span class="n">13</span><h2>Графики</h2></div>
+        <p class="sec-d">Правило: <b>лайм — выделенная серия</b> (вовлечённость, прогресс), нейтральный тёмный — базовая (охват). Минимум осей и сетки, акцент на форме данных.</p>
+        <div class="threecol">
+          <div class="panel"><div class="lbl">Sparkline</div><svg viewBox="0 0 200 60" width="100%" height="60"><polyline points="0,46 30,40 60,44 90,28 120,34 150,16 180,22 200,10" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg></div>
+          <div class="panel"><div class="lbl">Прогресс / ring</div><div class="prog" style="margin-bottom:14px"><i style="width:62%"></i></div><svg width="56" height="56" viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--surface-2)" stroke-width="4"/><circle cx="18" cy="18" r="15" fill="none" stroke="var(--accent-deep)" stroke-width="4" stroke-linecap="round" stroke-dasharray="94" stroke-dashoffset="28" transform="rotate(-90 18 18)"/><text x="18" y="21" text-anchor="middle" font-size="9" font-weight="700" fill="var(--ink)">70%</text></svg></div>
+          <div class="panel"><div class="lbl">Парные столбцы</div><div class="perf"><div class="g"><i class="r" style="height:60%"></i><i class="e" style="height:40%"></i></div><div class="g"><i class="r" style="height:80%"></i><i class="e" style="height:55%"></i></div><div class="g"><i class="r" style="height:50%"></i><i class="e" style="height:75%"></i></div><div class="g"><i class="r" style="height:90%"></i><i class="e" style="height:48%"></i></div></div></div>
+        </div>
+      </section>
+
+      <!-- A11Y -->
+      <section id="a11y">
+        <div class="sec-h"><span class="n">14</span><h2>Доступность и принципы</h2></div>
+        <div class="twocol">
+          <div class="panel">
+            <div class="lbl">Доступность</div>
+            <p class="t-body" style="margin:0 0 8px">• Видимый фокус (лаймовая обводка) на всех интерактивных элементах.</p>
+            <p class="t-body" style="margin:0 0 8px">• Контраст текста ≥ 4.5:1 в обеих темах; статус не передаётся только цветом — есть текст/иконка.</p>
+            <p class="t-body" style="margin:0 0 8px">• Клавиатура: Tab/Shift+Tab, Enter/Space для действий, Esc для закрытия.</p>
+            <p class="t-body" style="margin:0">• <code>prefers-reduced-motion</code> отключает анимации.</p>
+          </div>
+          <div class="panel">
+            <div class="lbl">Принципы</div>
+            <p class="t-body" style="margin:0 0 8px">• Семантические токены, без «голых» хексов в компонентах.</p>
+            <p class="t-body" style="margin:0 0 8px">• Лайм — один акцент: главные действия, активное, данные.</p>
+            <p class="t-body" style="margin:0 0 8px">• Лейбл = действие; единый словарь по всему продукту.</p>
+            <p class="t-body" style="margin:0">• Пустое состояние — приглашение к действию, ошибка — что случилось и как исправить.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CSS TOKENS -->
+      <section id="css">
+        <div class="sec-h"><span class="n">15</span><h2>Токены для разработчика (CSS)</h2></div>
+        <p class="sec-d">Готовый блок переменных. Тема переключается атрибутом <code>data-theme</code> на корне — разметка и компоненты не меняются.</p>
+        <pre><span class="c">/* светлая тема (по умолчанию) */</span>
+:root{
+  --bg:<span class="v">#ECECE6</span>; --surface:<span class="v">#FFFFFF</span>; --surface-2:<span class="v">#F4F4EE</span>;
+  --feature:<span class="v">#17181A</span>; --feature-ink:<span class="v">#FFFFFF</span>;
+  --ink:<span class="v">#17181A</span>; --muted:<span class="v">#71757C</span>; --on-accent:<span class="v">#16180D</span>;
+  --line:<span class="v">#E8E8E1</span>;
+  --accent:<span class="v">#C6F24E</span>; --accent-deep:<span class="v">#B6E63B</span>;
+  --green:<span class="v">#19A45B</span>; --red:<span class="v">#E0533D</span>; --warn:<span class="v">#C9892A</span>;
+  --shadow:0 1px 2px rgba(20,20,20,.05), 0 10px 30px rgba(20,20,20,.05);
+  --r:22px; --r-sm:14px; --r-xs:10px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:18px; --sp-6:24px;
+}
+<span class="c">/* тёмная лаймовая тема */</span>
+[data-theme="dark"]{
+  --bg:<span class="v">#101208</span>; --surface:<span class="v">#1A1D14</span>; --surface-2:<span class="v">#23271B</span>;
+  --feature:<span class="v">#0B0D07</span>; --feature-ink:<span class="v">#F3F5EC</span>;
+  --ink:<span class="v">#EEF1E4</span>; --muted:<span class="v">#9CA291</span>; --on-accent:<span class="v">#16180D</span>;
+  --line:<span class="v">#2C3122</span>;
+  --accent:<span class="v">#C6F24E</span>; --accent-deep:<span class="v">#A9DB36</span>;
+  --green:<span class="v">#37C470</span>; --red:<span class="v">#F0795F</span>; --warn:<span class="v">#E0A93E</span>;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 14px 34px rgba(0,0,0,.4);
+}</pre>
+      </section>
+
+    </main>
+  </div>
+
+<script>
+  function setTheme(t){
+    document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('bL').setAttribute('aria-pressed', t==='light');
+    document.getElementById('bD').setAttribute('aria-pressed', t==='dark');
+  }
+  // network glyphs (simple original marks)
+  const G={
+    ig:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="#fff" stroke="none"/></svg>',
+    tt:'<svg viewBox="0 0 24 24" fill="#fff"><path d="M14 3c.4 2.6 2 4.3 4.6 4.6v3c-1.7 0-3.2-.5-4.6-1.4v6.1c0 3.4-2.7 5.7-5.8 5.7-3 0-5.2-2.3-5.2-5.1 0-3 2.5-5.2 5.6-4.9v3.1c-.4-.1-.9-.2-1.3-.2-1.3 0-2.3 1-2.3 2.2 0 1.3 1 2.2 2.3 2.2 1.4 0 2.4-1 2.4-2.6V3H14z"/></svg>',
+    tg:'<svg viewBox="0 0 24 24" fill="#fff"><path d="M21 4 2.8 11.2c-.9.4-.9 1 .1 1.3l4.6 1.4 1.8 5.4c.2.6.5.6 1 .2l2.6-2.4 4.7 3.5c.7.4 1.2.2 1.4-.7L22.3 5c.2-1-.4-1.4-1.3-1z"/></svg>',
+    fb:'<b>f</b>', th:'<b>@</b>', x:'<b>𝕏</b>'
+  };
+  document.querySelectorAll('.net').forEach(n=>{for(const k in G){if(n.classList.contains(k)){n.innerHTML=G[k];}}});
+  // smooth toc scroll
+  document.querySelectorAll('.toc a').forEach(a=>a.addEventListener('click',e=>{
+    const el=document.querySelector(a.getAttribute('href'));
+    if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth',block:'start'});}
+  }));
+</script>
+</body>
+</html>

@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Контент-Завод — Прототип (все экраны)</title>
+<style>
+/* ====================== ТОКЕНЫ / ТЕМЫ ====================== */
+:root,[data-theme="light"]{
+  --bg:#ECECE6;--surface:#FFFFFF;--surface-2:#F4F4EE;--feature:#17181A;--feature-ink:#FFFFFF;
+  --ink:#17181A;--muted:#71757C;--on-accent:#16180D;--line:#E8E8E1;
+  --accent:#C6F24E;--accent-deep:#B6E63B;--green:#19A45B;--red:#E0533D;--warn:#C9892A;
+  --shadow:0 1px 2px rgba(20,20,20,.05),0 10px 30px rgba(20,20,20,.05);--net-dark:#111315;
+}
+[data-theme="dark"]{
+  --bg:#101208;--surface:#1A1D14;--surface-2:#23271B;--feature:#0B0D07;--feature-ink:#F3F5EC;
+  --ink:#EEF1E4;--muted:#9CA291;--on-accent:#16180D;--line:#2C3122;
+  --accent:#C6F24E;--accent-deep:#A9DB36;--green:#37C470;--red:#F0795F;--warn:#E0A93E;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 14px 34px rgba(0,0,0,.4);--net-dark:#2A2E22;
+}
+:root{--r:22px;--r-sm:14px;--r-xs:10px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Inter,Arial,sans-serif;--ease:cubic-bezier(.22,.61,.36,1);--ig:#E4405F;--tg:#2AABEE;--fb:#1877F2;
+  --c-coffee:#C58B3A;--c-bakery:#7C5CC4;--c-studio:#2AA9A0;--c-shop:#E0533D;}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .35s var(--ease),color .35s var(--ease)}
+::selection{background:var(--accent);color:var(--on-accent)}
+h1,h2,h3,h4{margin:0;letter-spacing:-.4px}a{color:inherit;text-decoration:none}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+:focus-visible{outline:2px solid var(--accent-deep);outline-offset:2px;border-radius:6px}
+
+.app{display:flex;min-height:100vh;padding:16px;gap:16px}
+
+/* ===== sidebar ===== */
+.sidebar{width:248px;flex:0 0 248px;background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);padding:18px 16px;display:flex;flex-direction:column;gap:13px;position:sticky;top:16px;height:calc(100vh - 32px)}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px 6px}
+.brand .mk{width:36px;height:36px;border-radius:11px;background:var(--feature);display:grid;place-items:center;color:var(--accent);font-weight:800;font-size:18px}
+.brand .nm{font-weight:750;font-size:16px}
+.pill-pro{font-size:10px;font-weight:800;background:var(--accent);color:var(--on-accent);padding:2px 7px;border-radius:999px}
+.ws{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--accent) 14%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--line));border-radius:var(--r-sm);padding:9px 11px;cursor:pointer}
+.ws .ic{width:30px;height:30px;border-radius:9px;background:var(--surface);display:grid;place-items:center;font-size:15px}
+.ws .t{flex:1;min-width:0}.ws .t b{display:block;font-size:13.5px;font-weight:700;line-height:1.1}.ws .t span{font-size:11px;color:var(--muted)}
+.ws .chev{color:var(--muted)}
+.nav{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;color:var(--ink);font-weight:600;font-size:13.5px;cursor:pointer;transition:background .15s}
+.nav a .gl{width:18px;color:var(--muted);text-align:center}
+.nav a:hover{background:var(--surface-2)}
+.nav a.active{background:var(--feature);color:var(--feature-ink)}
+.nav a.active .gl{color:var(--accent)}
+.nav a .badge{margin-left:auto;background:var(--accent);color:var(--on-accent);font-size:11px;font-weight:800;border-radius:999px;padding:1px 8px}
+.spacer{flex:1}
+.usage{background:var(--surface-2);border-radius:var(--r-sm);padding:12px}
+.usage .r{display:flex;justify-content:space-between;align-items:baseline}.usage .r b{font-size:13px}.usage .r span{font-size:11px;color:var(--muted)}
+.usage .big{font-size:19px;font-weight:800;margin-top:3px}.usage .big small{font-size:12px;color:var(--muted);font-weight:600}
+.bar{height:7px;border-radius:999px;background:color-mix(in srgb,var(--ink) 8%,var(--surface));margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--accent)}
+.me{display:flex;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:11px}
+.me .av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#c9a27a,#7a5a3a);display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px}
+.me .t b{display:block;font-size:13px;font-weight:700;line-height:1.1}.me .t span{font-size:11px;color:var(--muted)}.me .more{margin-left:auto;color:var(--muted)}
+
+/* ===== main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;gap:18px}
+.topbar{display:flex;align-items:center;gap:12px}
+.search{flex:1;max-width:480px;display:flex;align-items:center;gap:10px;background:var(--surface);border-radius:13px;box-shadow:var(--shadow);padding:11px 14px;color:var(--muted)}
+.search input{border:0;outline:0;flex:1;background:transparent;font:inherit;font-size:13.5px;color:var(--ink)}
+.search .kbd{font-size:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:2px 6px}
+.toggle{display:inline-flex;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px;box-shadow:var(--shadow);margin-left:auto}
+.toggle button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:12px;padding:7px 12px;border-radius:999px;cursor:pointer}
+.toggle button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.iconbtn{width:42px;height:42px;border-radius:13px;background:var(--surface);box-shadow:var(--shadow);border:0;cursor:pointer;display:grid;place-items:center;color:var(--ink);position:relative}
+.iconbtn .nb{position:absolute;top:-3px;right:-3px;background:var(--accent);color:var(--on-accent);font-size:10px;font-weight:800;border-radius:999px;min-width:17px;height:17px;display:grid;place-items:center;border:2px solid var(--bg)}
+
+/* page header */
+.phead{display:flex;align-items:flex-end;gap:14px}
+.phead h1{font-size:26px;font-weight:800;letter-spacing:-.7px}
+.phead p{margin:5px 0 0;color:var(--muted);font-size:13.5px}
+.phead .act{margin-left:auto;display:flex;gap:10px}
+
+/* generic */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px}
+.card.dark,.feature{background:var(--feature);color:var(--feature-ink);border:0}
+.card-h{display:flex;align-items:center;gap:9px;margin-bottom:14px}
+.card-h .ttl{font-weight:750;font-size:15px;display:flex;align-items:center;gap:9px}
+.card-h .link{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+.chip-ico{width:26px;height:26px;border-radius:9px;background:var(--surface-2);display:grid;place-items:center}
+.feature .chip-ico,.card.dark .chip-ico{background:#26282B}
+.lbl{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+
+.btn{font:inherit;font-weight:700;font-size:13px;border-radius:12px;padding:11px 16px;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:8px;transition:transform .12s,box-shadow .12s}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn.primary{background:var(--accent);border-color:var(--accent-deep);color:var(--on-accent)}
+.btn.ghost{background:transparent;border-color:transparent}.btn.ghost:hover{background:var(--surface-2);transform:none;box-shadow:none}
+.btn.sm{padding:7px 12px;font-size:12px;border-radius:10px}
+.field{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:9px 12px}
+.field input,.field textarea,.field select{border:0;outline:0;background:transparent;flex:1;font:inherit;color:var(--ink);font-size:13.5px;resize:vertical}
+.field:focus-within{border-color:var(--accent-deep);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+
+.pill{font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.pd{width:7px;height:7px;border-radius:50%}
+.pill.draft{background:var(--surface-2);color:var(--muted)}.pill.draft .pd{background:var(--muted)}
+.pill.sched{background:color-mix(in srgb,var(--accent) 22%,var(--surface));color:var(--on-accent)}.pill.sched .pd{background:var(--accent-deep)}
+.pill.pub{background:color-mix(in srgb,var(--green) 18%,var(--surface));color:var(--green)}.pill.pub .pd{background:var(--green)}
+.pill.err{background:color-mix(in srgb,var(--red) 16%,var(--surface));color:var(--red)}.pill.err .pd{background:var(--red)}
+.pill.live{background:color-mix(in srgb,var(--warn) 18%,var(--surface));color:var(--warn)}.pill.live .pd{background:var(--warn);animation:pulse 1.3s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.net{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;color:#fff;flex:0 0 24px}
+.net svg{width:13px;height:13px}.net b{font-weight:800;font-size:12px}
+.net.lg{width:28px;height:28px;border-radius:8px}
+.net.ig{background:linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)}.net.tt{background:var(--net-dark)}.net.tg{background:var(--tg)}
+.net.th{background:var(--net-dark)}.net.fb{background:var(--fb)}.net.x{background:var(--net-dark)}
+
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.dirtag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600}
+
+/* filters / tabs / segmented */
+.filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chip{font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;color:var(--ink)}
+.chip.on{background:var(--feature);color:var(--feature-ink);border-color:var(--feature)}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:12px;padding:3px}
+.seg button{border:0;background:transparent;font:inherit;font-weight:700;font-size:12.5px;color:var(--muted);padding:8px 14px;border-radius:9px;cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs button{border:0;background:transparent;font:inherit;font-weight:650;font-size:13px;color:var(--muted);padding:11px 14px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--ink);border-color:var(--accent-deep)}
+.tabs button .cnt{font-size:11px;color:var(--muted);margin-left:5px}
+
+/* table */
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--muted);text-transform:uppercase;padding:0 12px 12px}
+.tbl td{padding:13px 12px;border-top:1px solid var(--line);vertical-align:middle}
+.tbl tr:hover td{background:var(--surface-2)}
+.tbl .pa{display:flex;align-items:center;gap:11px}
+.tbl .thumb{width:38px;height:38px;border-radius:10px;flex:0 0 38px;background:linear-gradient(135deg,#caa46f,#6c4a2a)}
+.netset{display:flex;gap:5px}
+
+/* metric */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.metric{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-height:140px;display:flex;flex-direction:column}
+.metric.feat{background:var(--feature);color:var(--feature-ink);border:0}
+.metric .ml{font-size:12px;color:var(--muted)}.metric.feat .ml{color:#A8ADB4}
+.metric .mv{font-size:28px;font-weight:800;letter-spacing:-1px;margin-top:5px;line-height:1}
+.delta{font-size:11.5px;font-weight:700;color:var(--green)}.delta.dn{color:var(--red)}
+.spark{margin-top:auto}
+.bars{display:flex;align-items:flex-end;gap:3px;height:42px;margin-top:auto}.bars i{flex:1;border-radius:3px;background:color-mix(in srgb,var(--ink) 14%,var(--surface))}.bars i.a{background:var(--accent)}
+.prog{height:8px;border-radius:999px;background:var(--surface-2);overflow:hidden}.prog i{display:block;height:100%;background:var(--accent)}
+.pencil{width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center}
+
+/* list rows */
+.lrow{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.lrow:first-of-type{border-top:0}.lrow .t{flex:1;min-width:0}.lrow .t b{display:block;font-size:13px;font-weight:650;line-height:1.15}.lrow .t span{font-size:11.5px;color:var(--muted)}
+.lrow .num{font-weight:750;font-size:13px;text-align:right}.lrow .num em{display:block;font-style:normal;font-size:11px;color:var(--green);font-weight:700}.lrow .num em.dn{color:var(--red)}
+.thumbS{width:42px;height:42px;border-radius:12px;flex:0 0 42px;position:relative;overflow:hidden}.thumbS .net{position:absolute;left:-4px;bottom:-4px}
+.time{font-size:12px;font-weight:700;color:var(--muted);width:42px;flex:0 0 42px}
+.ring{width:38px;height:38px;flex:0 0 38px}
+
+/* layout helpers */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.dash{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+
+/* trends/dark rows */
+.trow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #2A2C2F}.trow:first-of-type{border-top:0}
+.trow .tag{flex:1;font-weight:650;font-size:13px}.trow .tag i{color:var(--accent);font-style:normal}.trow .cnt{font-size:11.5px;color:#9CA1A8}
+.sysrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #2A2C2F}.sysrow:first-of-type{border-top:0}
+.sysrow .t{flex:1;font-weight:600;font-size:13px}.sysrow .ok{font-size:12px;font-weight:700;color:var(--accent)}.sysrow .gl{color:#9CA1A8}
+.qa{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.qbtn{display:flex;align-items:center;gap:8px;justify-content:center;padding:13px 8px;border-radius:13px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:12.5px;cursor:pointer}
+.qbtn:hover{box-shadow:var(--shadow)}.qbtn.primary{background:var(--accent);border-color:var(--accent-deep);color:var(--on-accent)}
+
+/* calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.cal .dow{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;text-align:center;padding-bottom:2px}
+.cal .cell{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;min-height:96px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.cal .cell.out{opacity:.45}
+.cal .cell .d{font-size:12px;font-weight:700;color:var(--muted)}
+.cal .cell.today .d{color:var(--on-accent);background:var(--accent);width:22px;height:22px;border-radius:50%;display:grid;place-items:center}
+.ev{font-size:11px;font-weight:650;padding:4px 7px;border-radius:8px;display:flex;align-items:center;gap:5px;background:var(--surface);border-left:3px solid var(--accent-deep);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ev .net{width:15px;height:15px;border-radius:5px}.ev .net svg{width:9px;height:9px}.ev .net b{font-size:9px}
+
+/* studio */
+.studio{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start}
+.modelcard{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:13px;cursor:pointer}
+.modelcard.on{border-color:var(--accent-deep);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.modelcard .t{flex:1}.modelcard .t b{display:block;font-size:13px}.modelcard .t span{font-size:11px;color:var(--muted)}
+.modelcard .price{font-size:12px;font-weight:750}
+.switch{width:42px;height:24px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);position:relative;cursor:pointer;flex:0 0 42px}
+.switch i{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.2s}
+.switch.on{background:var(--accent);border-color:var(--accent-deep)}.switch.on i{left:20px;background:var(--on-accent)}
+.results{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.gen{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.gen .img{height:150px;background:linear-gradient(135deg,#cda472,#6e4a28);position:relative}
+.gen .img .net{position:absolute;left:10px;top:10px}
+.gen .ft{padding:10px 12px;display:flex;align-items:center;gap:8px}.gen .ft b{flex:1;font-size:12.5px}
+
+/* inbox */
+.inbox{display:grid;grid-template-columns:300px 1fr 260px;gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface);min-height:560px}
+.inbox .pane{display:flex;flex-direction:column;min-width:0}
+.inbox .pane+.pane{border-left:1px solid var(--line)}
+.convs{overflow:auto}
+.conv{display:flex;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.conv.on{background:var(--surface-2)}.conv .av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#caa46f,#6c4a2a);flex:0 0 36px;position:relative}.conv .av .net{position:absolute;right:-4px;bottom:-4px;width:16px;height:16px;border-radius:5px}.conv .av .net svg{width:9px;height:9px}.conv .av .net b{font-size:9px}
+.conv .t{flex:1;min-width:0}.conv .t b{display:block;font-size:13px}.conv .t span{font-size:11.5px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.conv .when{font-size:10.5px;color:var(--muted)}
+.thread{flex:1;display:flex;flex-direction:column}
+.thread .msgs{flex:1;padding:18px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.bub{max-width:70%;padding:9px 13px;border-radius:14px;font-size:13px}
+.bub.in{background:var(--surface-2);align-self:flex-start;border-bottom-left-radius:4px}
+.bub.out{background:var(--accent);color:var(--on-accent);align-self:flex-end;border-bottom-right-radius:4px}
+.thread .composer{border-top:1px solid var(--line);padding:12px;display:flex;gap:8px;align-items:center}
+.win{font-size:11.5px;color:var(--green);padding:6px 14px;background:color-mix(in srgb,var(--green) 12%,var(--surface));border-bottom:1px solid var(--line)}
+.ctxp{padding:18px}
+.ctxp .big-av{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#caa46f,#6c4a2a);margin-bottom:10px}
+
+/* analytics chart */
+.linechart{height:170px}
+.perf{display:flex;align-items:flex-end;gap:8px;height:170px}
+.perf .g{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%}
+.perf .g i{width:9px;border-radius:4px}.perf .g i.r{background:var(--ink)}.perf .g i.e{background:var(--accent)}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:6px}.legend .k{display:flex;align-items:center;gap:6px;font-weight:600}.legend .sw{width:9px;height:9px;border-radius:3px}
+
+/* editor */
+.editor{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
+.netpick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.netpick .np{display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-size:12.5px;font-weight:600}
+.netpick .np.on{border-color:var(--accent-deep);background:color-mix(in srgb,var(--accent) 12%,var(--surface))}
+.acc{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:10px}
+.acc .ah{display:flex;align-items:center;gap:9px;font-weight:650;font-size:13px}
+.acc .cnt{margin-left:auto;font-size:11px;color:var(--muted)}
+.preview{background:var(--surface-2);border-radius:14px;padding:14px;min-height:230px}
+.previewmock{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.previewmock .ph{display:flex;align-items:center;gap:8px;padding:10px}.previewmock .ph .av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#caa46f,#6c4a2a)}
+.previewmock .pimg{height:150px;background:linear-gradient(135deg,#cda472,#6e4a28)}
+.previewmock .pcap{padding:10px 12px;font-size:12.5px}
+.editbar{position:sticky;bottom:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 16px;display:flex;align-items:center;gap:10px;margin-top:4px}
+
+/* settings */
+.introw{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}.introw:first-of-type{border-top:0}
+.introw .ic{width:38px;height:38px;border-radius:11px;background:var(--surface-2);display:grid;place-items:center}
+.introw .t{flex:1}.introw .t b{display:block;font-size:13.5px}.introw .t span{font-size:11.5px;color:var(--muted)}
+.spendbar{display:flex;align-items:center;gap:12px;padding:10px 0}
+.spendbar .nm{width:150px;flex:0 0 150px;font-size:13px;font-weight:600}
+.spendbar .track{flex:1;height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}.spendbar .track i{display:block;height:100%;border-radius:999px;background:var(--accent)}
+.spendbar .amt{width:60px;text-align:right;font-size:13px;font-weight:700}
+
+/* screens */
+.screen{display:none;flex-direction:column;gap:18px}
+.screen.active{display:flex;animation:rise .4s var(--ease) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+@media (max-width:1100px){
+  .dash{grid-template-columns:1fr}.studio{grid-template-columns:1fr}.editor{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}.inbox{grid-template-columns:1fr}
+}
+@media (max-width:900px){.app{flex-direction:column;padding:12px}.sidebar{width:auto;flex:none;height:auto;position:static}.spacer{display:none}
+  .grid2,.grid3{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body data-screen="dashboard">
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand"><div class="mk">К</div><div class="nm">Контент‑Завод</div><span class="pill-pro">PRO</span></div>
+    <div class="ws"><div class="ic">☕️</div><div class="t"><b>Coffee House</b><span>Рабочее пространство</span></div><span class="chev">▾</span></div>
+    <nav class="nav" id="nav">
+      <a data-go="dashboard" class="active"><span class="gl">▦</span> Дашборд</a>
+      <a data-go="studio"><span class="gl">✦</span> AI‑Студия</a>
+      <a data-go="calendar"><span class="gl">▤</span> Календарь</a>
+      <a data-go="media"><span class="gl">▥</span> Медиа</a>
+      <a data-go="posts"><span class="gl">✎</span> Посты</a>
+      <a data-go="funnels"><span class="gl">⇄</span> Воронки</a>
+      <a data-go="analytics"><span class="gl">▮</span> Аналитика</a>
+      <a data-go="messages"><span class="gl">✉</span> Сообщения <span class="badge">12</span></a>
+      <a data-go="team"><span class="gl">◑</span> Команда</a>
+      <a data-go="settings"><span class="gl">⚙</span> Настройки</a>
+    </nav>
+    <div class="spacer"></div>
+    <div class="usage"><div class="r"><b>Бюджет</b><span>за месяц</span></div><div class="big">$186 <small>/ $300</small></div><div class="bar"><i style="width:62%"></i></div></div>
+    <div class="me"><div class="av">ИП</div><div class="t"><b>Иван Петров</b><span>Владелец</span></div><span class="more">⋯</span></div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <div class="topbar">
+      <div class="search"><span>⌕</span><input placeholder="Найти пост, медиа, аккаунт…"><span class="kbd">⌘K</span></div>
+      <div class="toggle" role="group" aria-label="Тема">
+        <button id="bL" aria-pressed="true" onclick="setTheme('light')">☀︎</button>
+        <button id="bD" aria-pressed="false" onclick="setTheme('dark')">☾</button>
+      </div>
+      <button class="iconbtn" aria-label="Уведомления">🔔<span class="nb">5</span></button>
+    </div>
+
+    <!-- ===================== DASHBOARD ===================== -->
+    <section class="screen active" data-screen="dashboard">
+      <div class="phead"><div><h1>Доброе утро, Иван! 👋</h1><p>Вот что происходит с вашим контентом сегодня.</p></div>
+        <div class="act"><button class="btn primary" data-go="editor">✎ Создать пост</button></div></div>
+
+      <div class="metrics">
+        <div class="metric feat"><div class="ml">Аудитория</div><div class="mv">2.48M</div><div><span class="delta">▲ 18.6%</span></div>
+          <div class="spark"><svg viewBox="0 0 200 40" width="100%" height="40" preserveAspectRatio="none"><polyline points="0,32 30,28 60,30 90,20 120,24 150,12 180,16 200,8" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/></svg></div></div>
+        <div class="metric"><div class="ml">Вовлечённость</div><div class="mv">5.72%</div><div><span class="delta">▲ 24.1%</span></div>
+          <div class="bars"><i style="height:40%"></i><i class="a" style="height:70%"></i><i style="height:35%"></i><i style="height:85%"></i><i class="a" style="height:55%"></i><i style="height:65%"></i><i style="height:45%"></i><i class="a" style="height:90%"></i></div></div>
+        <div class="metric"><div style="display:flex;justify-content:space-between"><div><div class="ml">Постов за неделю</div><div class="mv">24 <small style="font-size:13px;color:var(--muted);font-weight:600">из 35</small></div></div><div class="pencil">✎</div></div><div class="spark"><div class="prog"><i style="width:68%"></i></div></div></div>
+        <div class="metric"><div class="ml">AI‑генераций</div><div class="mv">342</div><div><span style="font-size:11.5px;color:var(--muted)">в этом месяце</span></div>
+          <div class="spark"><svg viewBox="0 0 200 40" width="100%" height="40" preserveAspectRatio="none"><polyline points="0,28 30,30 60,20 90,26 120,16 150,22 180,12 200,8" fill="none" stroke="var(--accent-deep)" stroke-width="3" stroke-linecap="round"/></svg></div></div>
+      </div>
+
+      <div class="dash">
+        <div class="col">
+          <div class="grid2">
+            <div class="card"><div class="card-h"><div class="ttl"><span class="chip-ico">✦</span>Очередь AI‑генерации</div><span class="link" data-go="studio">Все</span></div>
+              <div class="lrow"><div class="thumbS" style="background:linear-gradient(135deg,#e8b27a,#b9763a)"><span class="net ig"></span></div><div class="t"><b>Reel «Утренний вайб»</b><span>Генерируется…</span></div><span class="pill live"><span class="pd"></span>76%</span></div>
+              <div class="lrow"><div class="thumbS" style="background:linear-gradient(135deg,#c9a16f,#7c5230)"><span class="net tt"></span></div><div class="t"><b>Пост «Новый бленд»</b><span>В работе…</span></div><span class="pill sched"><span class="pd"></span>45%</span></div>
+              <div class="lrow"><div class="thumbS" style="background:linear-gradient(135deg,#e2c79a,#a9824f)"><span class="net ig"></span></div><div class="t"><b>Stories «Латте‑арт»</b><span>В очереди</span></div><span class="pill draft"><span class="pd"></span>Ожидает</span></div>
+            </div>
+            <div class="card"><div class="card-h"><div class="ttl"><span class="chip-ico">▤</span>Расписание на сегодня</div><span class="link" data-go="calendar">Календарь</span></div>
+              <div class="lrow"><span class="time">09:00</span><span class="net lg ig"></span><div class="t"><b>Утренняя цитата</b><span>Instagram · Лента</span></div><span class="pill sched"><span class="pd"></span>План</span></div>
+              <div class="lrow"><span class="time">14:00</span><span class="net lg tg"></span><div class="t"><b>Совет дня</b><span>Telegram · Канал</span></div><span class="pill sched"><span class="pd"></span>План</span></div>
+              <div class="lrow"><span class="time">18:00</span><span class="net lg fb"></span><div class="t"><b>Выходное настроение</b><span>Facebook</span></div><span class="pill sched"><span class="pd"></span>План</span></div>
+            </div>
+          </div>
+          <div class="card"><div class="card-h"><div class="ttl">Эффективность контента</div><span class="link">Этот месяц ▾</span></div>
+            <div class="legend"><span class="k"><span class="sw" style="background:var(--ink)"></span>Охват</span><span class="k"><span class="sw" style="background:var(--accent)"></span>Вовлечённость</span></div>
+            <div class="perf"><div class="g"><i class="r" style="height:60%"></i><i class="e" style="height:38%"></i></div><div class="g"><i class="r" style="height:45%"></i><i class="e" style="height:55%"></i></div><div class="g"><i class="r" style="height:72%"></i><i class="e" style="height:40%"></i></div><div class="g"><i class="r" style="height:50%"></i><i class="e" style="height:66%"></i></div><div class="g"><i class="r" style="height:85%"></i><i class="e" style="height:48%"></i></div><div class="g"><i class="r" style="height:58%"></i><i class="e" style="height:78%"></i></div><div class="g"><i class="r" style="height:90%"></i><i class="e" style="height:52%"></i></div></div></div>
+        </div>
+        <div class="col">
+          <div class="card dark"><div class="card-h"><div class="ttl">Тренды</div><span class="link" data-go="studio">Все</span></div>
+            <div class="trow"><div class="tag"><i>#</i>УтреннийКофе</div><div class="cnt">12.5K</div></div>
+            <div class="trow"><div class="tag"><i>#</i>CoffeeLover</div><div class="cnt">8.7K</div></div>
+            <div class="trow"><div class="tag"><i>#</i>LatteArt</div><div class="cnt">6.3K</div></div>
+            <div class="trow"><div class="tag"><i>#</i>CafeVibes</div><div class="cnt">5.1K</div></div></div>
+          <div class="card"><div class="card-h"><div class="ttl">Аккаунты</div><span class="link" data-go="settings">Управление</span></div>
+            <div class="lrow"><span class="net lg ig"></span><div class="t"><b>@coffee.house</b><span>Instagram</span></div><div class="num">124K<em>▲12.4%</em></div></div>
+            <div class="lrow"><span class="net lg tt"></span><div class="t"><b>@coffee.house</b><span>TikTok</span></div><div class="num">89K<em>▲8.7%</em></div></div>
+            <div class="lrow"><span class="net lg x"></span><div class="t"><b>@coffee_house</b><span>X (Twitter)</span></div><div class="num">45K<em class="dn">▼2.3%</em></div></div>
+            <div class="lrow"><span class="net lg tg"></span><div class="t"><b>Coffee House</b><span>Telegram</span></div><div class="num">12K<em>▲15.2%</em></div></div></div>
+          <div class="card"><div class="card-h"><div class="ttl">Быстрые действия</div></div>
+            <div class="qa"><button class="qbtn primary" data-go="editor">✎ Создать пост</button><button class="qbtn" data-go="studio">✦ AI</button><button class="qbtn" data-go="media">⤴ Медиа</button><button class="qbtn" data-go="calendar">▤ Календарь</button></div></div>
+          <div class="card dark"><div class="card-h"><div class="ttl">Статус системы</div></div>
+            <div class="sysrow"><span class="gl">◍</span><span class="t">Postproxy API</span><span class="ok">Работает</span></div>
+            <div class="sysrow"><span class="gl">✦</span><span class="t">kie.ai</span><span class="ok">Работает</span></div>
+            <div class="sysrow"><span class="gl">▥</span><span class="t">EnsembleData</span><span class="ok">Работает</span></div>
+            <div class="sysrow"><span class="gl">▢</span><span class="t">Хранилище</span><span class="ok">Работает</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== AI STUDIO ===================== -->
+    <section class="screen" data-screen="studio">
+      <div class="phead"><div><h1>AI‑Студия</h1><p>Генерация контента через kie.ai — текст, изображения, видео, аудио.</p></div>
+        <div class="act"><span class="pill draft" style="align-self:center">Бюджет: $186 / $300</span></div></div>
+      <div class="seg"><button class="on">✎ Текст</button><button>🖼 Изображение</button><button>🎬 Видео</button><button>🎵 Аудио</button></div>
+      <div class="studio">
+        <div class="col">
+          <div class="card">
+            <div class="lbl">Промпт</div>
+            <div class="field" style="align-items:flex-start"><textarea rows="4" placeholder="Опишите, что сгенерировать…">Рекламный ролик нового холодного бленда, утренняя кофейня, тёплый свет, 8 секунд</textarea></div>
+            <p style="font-size:11.5px;color:var(--muted);margin:8px 0 0">Бриф бренда «Coffee House» подмешивается автоматически.</p>
+          </div>
+          <div class="card"><div class="lbl">Модель</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="modelcard on"><span class="net" style="background:var(--accent);color:var(--on-accent)"><b>F</b></span><div class="t"><b>Veo 3 Fast · 720p</b><span>быстро, для соцсетей</span></div><div class="price">≈$0.40</div></div>
+              <div class="modelcard"><span class="net" style="background:var(--feature);color:var(--accent)"><b>K</b></span><div class="t"><b>Kling 3.0</b><span>плавное движение</span></div><div class="price">≈$0.55</div></div>
+              <div class="modelcard"><span class="net" style="background:var(--feature);color:var(--accent)"><b>V</b></span><div class="t"><b>Veo 3 Quality · 1080p</b><span>премиум, для героев</span></div><div class="price">≈$2.00</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:14px"><div class="switch on" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px;font-weight:600">Пресет «720p для соцсетей»</div></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:10px"><div class="switch" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px;font-weight:600">Вотермарка <span style="color:var(--muted);font-weight:500">— выключить для TikTok</span></div></div>
+            <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px">✦ Сгенерировать · ≈$0.40</button>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card"><div class="card-h"><div class="ttl">Очередь генерации</div></div>
+            <div class="lrow"><div class="thumbS" style="background:linear-gradient(135deg,#e8b27a,#b9763a)"></div><div class="t"><b>Reel «Утренний вайб»</b><span>Veo 3 Fast · видео</span></div><span class="pill live"><span class="pd"></span>76%</span></div>
+            <div class="lrow"><div class="thumbS" style="background:linear-gradient(135deg,#c9a16f,#7c5230)"></div><div class="t"><b>Пост «Новый бленд»</b><span>GPT Image · фото</span></div><span class="pill sched"><span class="pd"></span>45%</span></div>
+          </div>
+          <div class="card"><div class="card-h"><div class="ttl">Результаты</div><span class="link">В библиотеку</span></div>
+            <div class="results">
+              <div class="gen"><div class="img"><span class="net ig"></span></div><div class="ft"><b>Iced latte v1</b><button class="btn sm">В пост</button></div></div>
+              <div class="gen"><div class="img" style="background:linear-gradient(135deg,#b9925f,#5e3f22)"></div><div class="ft"><b>Iced latte v2</b><button class="btn sm">В пост</button></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== CALENDAR ===================== -->
+    <section class="screen" data-screen="calendar">
+      <div class="phead"><div><h1>Календарь</h1><p>Планирование контента по направлениям и сетям.</p></div>
+        <div class="act"><div class="seg"><button>День</button><button class="on">Месяц</button></div><button class="btn primary" data-go="editor">✎ Создать пост</button></div></div>
+      <div class="filters"><span style="font-size:13px;font-weight:700;margin-right:6px">Июнь 2026</span><span class="chip on">Все сети</span><span class="chip"><span class="net ig" style="width:16px;height:16px;display:inline-grid"></span></span><span class="chip">Coffee House</span><span class="chip">Запланировано</span></div>
+      <div class="card"><div class="cal" id="cal"></div></div>
+    </section>
+
+    <!-- ===================== MEDIA ===================== -->
+    <section class="screen" data-screen="media">
+      <div class="phead"><div><h1>Медиа‑библиотека</h1><p>Хранение и переиспользование фото и видео.</p></div>
+        <div class="act"><button class="btn">Загрузить</button><button class="btn primary" data-go="studio">✦ Сгенерировать</button></div></div>
+      <div class="filters"><span class="chip on">Всё</span><span class="chip">Фото</span><span class="chip">Видео</span><span class="chip">AI‑сгенерировано</span><span class="chip">Загружено</span><div class="field" style="margin-left:auto;max-width:240px"><span>⌕</span><input placeholder="Поиск по тегам…"></div></div>
+      <div class="card"><div class="grid" id="mediaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px"></div></div>
+    </section>
+
+    <!-- ===================== POSTS ===================== -->
+    <section class="screen" data-screen="posts">
+      <div class="phead"><div><h1>Посты</h1><p>Все публикации по направлениям и сетям.</p></div>
+        <div class="act"><button class="btn primary" data-go="editor">✎ Создать пост</button></div></div>
+      <div class="tabs"><button class="on">Все <span class="cnt">128</span></button><button>Черновики <span class="cnt">14</span></button><button>Запланировано <span class="cnt">31</span></button><button>Опубликовано <span class="cnt">79</span></button><button>Ошибки <span class="cnt">4</span></button></div>
+      <div class="card" style="padding:8px 10px">
+        <table class="tbl"><thead><tr><th>Пост</th><th>Сети</th><th>Направление</th><th>Статус</th><th>Время</th><th>Охват</th></tr></thead><tbody>
+          <tr><td><div class="pa"><div class="thumb"></div><div><b>Morning Iced Latte</b><div style="font-size:11.5px;color:var(--muted)">Reel · видео</div></div></div></td><td><div class="netset"><span class="net ig"></span><span class="net tt"></span></div></td><td><span class="dirtag"><span class="dot" style="background:var(--c-coffee)"></span>Coffee House</span></td><td><span class="pill pub"><span class="pd"></span>Опубликовано</span></td><td>24 июн</td><td><b>128K</b></td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="background:linear-gradient(135deg,#b9925f,#5e3f22)"></div><div><b>Новый сезонный бленд</b><div style="font-size:11.5px;color:var(--muted)">Карусель</div></div></div></td><td><div class="netset"><span class="net ig"></span><span class="net fb"></span></div></td><td><span class="dirtag"><span class="dot" style="background:var(--c-coffee)"></span>Coffee House</span></td><td><span class="pill sched"><span class="pd"></span>27 июн 14:00</span></td><td>—</td><td>—</td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="background:linear-gradient(135deg,#9a7be0,#5b3fb0)"></div><div><b>Рецепт чизкейка</b><div style="font-size:11.5px;color:var(--muted)">Пост</div></div></div></td><td><div class="netset"><span class="net tg"></span><span class="net th"></span></div></td><td><span class="dirtag"><span class="dot" style="background:var(--c-bakery)"></span>Bakery</span></td><td><span class="pill draft"><span class="pd"></span>Черновик</span></td><td>—</td><td>—</td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="background:linear-gradient(135deg,#caa46f,#6c4a2a)"></div><div><b>За кадром: обжарка</b><div style="font-size:11.5px;color:var(--muted)">Видео</div></div></div></td><td><div class="netset"><span class="net tt"></span></div></td><td><span class="dirtag"><span class="dot" style="background:var(--c-coffee)"></span>Coffee House</span></td><td><span class="pill err"><span class="pd"></span>Ошибка · токен</span></td><td>25 июн</td><td>—</td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="background:linear-gradient(135deg,#3fb5ad,#1d7a73)"></div><div><b>Анонс воркшопа</b><div style="font-size:11.5px;color:var(--muted)">Пост</div></div></div></td><td><div class="netset"><span class="net ig"></span><span class="net x"></span><span class="net fb"></span></div></td><td><span class="dirtag"><span class="dot" style="background:var(--c-studio)"></span>Studio</span></td><td><span class="pill sched"><span class="pd"></span>28 июн 10:00</span></td><td>—</td><td>—</td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- ===================== EDITOR ===================== -->
+    <section class="screen" data-screen="editor">
+      <div class="phead"><div><h1>Новый пост</h1><p>Соберите пост и адаптируйте под каждую сеть.</p></div>
+        <div class="act"><button class="btn ghost" data-go="posts">← К постам</button></div></div>
+      <div class="editor">
+        <div class="col">
+          <div class="card">
+            <div class="lbl">Направление и сети</div>
+            <div class="netpick">
+              <span class="np on"><span class="net ig"></span>Instagram</span>
+              <span class="np on"><span class="net tt"></span>TikTok</span>
+              <span class="np"><span class="net tg"></span>Telegram</span>
+              <span class="np"><span class="net th"></span>Threads</span>
+              <span class="np"><span class="net fb"></span>Facebook</span>
+              <span class="np"><span class="net x"></span>X</span>
+            </div>
+            <div class="lbl">Текст поста</div>
+            <div class="field" style="align-items:flex-start"><textarea rows="4" placeholder="Единый текст для всех сетей…">Доброе утро ☕️ Новый холодный бленд уже в меню — попробуйте сегодня!</textarea></div>
+            <div style="display:flex;gap:8px;margin-top:10px"><button class="btn sm">✦ Сгенерировать текст</button><button class="btn sm">Подобрать хэштеги</button><button class="btn sm">Переписать под сеть</button></div>
+            <div class="acc"><div class="ah"><span class="net tt"></span>TikTok <span class="cnt">280 / 2200</span></div></div>
+            <div class="acc"><div class="ah"><span class="net ig"></span>Instagram · обложка Reel, первый комментарий <span class="cnt">⌄</span></div></div>
+          </div>
+          <div class="card"><div class="lbl">Медиа</div>
+            <div style="display:flex;gap:12px"><div class="thumb" style="width:90px;height:90px;border-radius:14px;background:linear-gradient(135deg,#cda472,#6e4a28)"></div><button class="btn" style="height:90px">+ Добавить из библиотеки</button></div>
+            <p style="font-size:11.5px;color:var(--warn);margin:10px 0 0">⚠ TikTok: вотермарки и логотипы поверх видео запрещены.</p>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card"><div class="lbl">Превью · Instagram</div>
+            <div class="previewmock"><div class="ph"><div class="av"></div><b style="font-size:12.5px">@coffee.house</b></div><div class="pimg"></div><div class="pcap"><b>coffee.house</b> Доброе утро ☕️ Новый холодный бленд…</div></div>
+          </div>
+          <div class="card"><div class="lbl">AI‑помощник</div>
+            <button class="btn" style="width:100%;justify-content:center;margin-bottom:8px">✦ Сгенерировать изображение</button>
+            <button class="btn" style="width:100%;justify-content:center">🎬 Сгенерировать видео для Reels</button>
+          </div>
+        </div>
+      </div>
+      <div class="editbar"><span class="pill draft"><span class="pd"></span>Черновик</span><span style="font-size:12.5px;color:var(--muted)">2 сети выбрано · 1 предупреждение</span><div style="margin-left:auto;display:flex;gap:10px"><button class="btn">Сохранить</button><button class="btn">📅 Запланировать</button><button class="btn primary">Опубликовать</button></div></div>
+    </section>
+
+    <!-- ===================== FUNNELS ===================== -->
+    <section class="screen" data-screen="funnels">
+      <div class="phead"><div><h1>Воронки авто‑ответа</h1><p>Ключевое слово → ссылка на гайд / Telegram‑канал.</p></div>
+        <div class="act"><button class="btn primary">+ Новая воронка</button></div></div>
+      <div class="grid2">
+        <div class="card" style="padding:8px 10px">
+          <table class="tbl"><thead><tr><th>Воронка</th><th>Канал</th><th>Статус</th><th>Конверсия</th></tr></thead><tbody>
+            <tr><td><b>«ГАЙД» → ссылка</b><div style="font-size:11.5px;color:var(--muted)">ключевые: гайд, guide</div></td><td><span class="net ig"></span></td><td><span class="pill pub"><span class="pd"></span>Активна</span></td><td><b>34%</b></td></tr>
+            <tr><td><b>«МЕНЮ» → PDF</b><div style="font-size:11.5px;color:var(--muted)">ключевые: меню, menu</div></td><td><span class="net fb"></span></td><td><span class="pill pub"><span class="pd"></span>Активна</span></td><td><b>28%</b></td></tr>
+            <tr><td><b>«СКИДКА» → промокод</b><div style="font-size:11.5px;color:var(--muted)">ключевые: скидка</div></td><td><span class="net tg"></span></td><td><span class="pill draft"><span class="pd"></span>Пауза</span></td><td>—</td></tr>
+          </tbody></table>
+        </div>
+        <div class="card"><div class="lbl">Конструктор · «ГАЙД» → ссылка</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="acc"><div class="ah">① Триггер</div><div style="margin-top:8px;font-size:12.5px;color:var(--muted)">Instagram · @coffee.house · все посты</div><div class="field" style="margin-top:8px"><input value="гайд, guide, гайдик"></div></div>
+            <div style="text-align:center;color:var(--muted)">↓</div>
+            <div class="acc"><div class="ah">② Действие · private reply + личка</div><div class="field" style="margin-top:8px;align-items:flex-start"><textarea rows="2">Лови гайд 👉 ссылка + подпишись на наш Telegram‑канал!</textarea></div></div>
+            <div style="font-size:11.5px;color:var(--muted)">Учтены окна Meta (24 ч / 7 дней private reply) и пейсинг ≤200/час.</div>
+            <button class="btn primary" style="justify-content:center">Сохранить воронку</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ANALYTICS ===================== -->
+    <section class="screen" data-screen="analytics">
+      <div class="phead"><div><h1>Аналитика</h1><p>Рост аудитории и эффективность контента.</p></div>
+        <div class="act"><span class="chip on">Все направления</span><div class="seg"><button>Неделя</button><button class="on">Месяц</button><button>Квартал</button></div></div></div>
+      <div class="metrics">
+        <div class="metric feat"><div class="ml">Подписчики</div><div class="mv">2.48M</div><div><span class="delta">▲ 18.6%</span></div></div>
+        <div class="metric"><div class="ml">Охват</div><div class="mv">8.9M</div><div><span class="delta">▲ 12.1%</span></div></div>
+        <div class="metric"><div class="ml">Вовлечённость</div><div class="mv">5.72%</div><div><span class="delta">▲ 24.1%</span></div></div>
+        <div class="metric"><div class="ml">Новые подписки</div><div class="mv">+38K</div><div><span class="delta dn">▼ 3.2%</span></div></div>
+      </div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><div class="ttl">Рост подписчиков</div></div>
+          <svg class="linechart" viewBox="0 0 400 170" width="100%" preserveAspectRatio="none">
+            <polyline points="0,150 50,140 100,145 150,120 200,125 250,95 300,100 350,70 400,55" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+            <polyline points="0,160 50,158 100,150 150,152 200,140 250,138 300,128 350,124 400,112" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 4"/>
+          </svg>
+          <div class="legend" style="margin-top:8px"><span class="k"><span class="sw" style="background:var(--accent)"></span>Этот период</span><span class="k"><span class="sw" style="background:var(--muted)"></span>Прошлый</span></div>
+        </div>
+        <div class="card"><div class="card-h"><div class="ttl">Сравнение направлений</div></div>
+          <div class="lrow"><span class="dirtag"><span class="dot" style="background:var(--c-coffee)"></span>Coffee House</span><div style="flex:1;margin:0 12px"><div class="prog"><i style="width:90%"></i></div></div><b>+12.4%</b></div>
+          <div class="lrow"><span class="dirtag"><span class="dot" style="background:var(--c-bakery)"></span>Bakery</span><div style="flex:1;margin:0 12px"><div class="prog"><i style="width:62%"></i></div></div><b>+7.8%</b></div>
+          <div class="lrow"><span class="dirtag"><span class="dot" style="background:var(--c-studio)"></span>Studio</span><div style="flex:1;margin:0 12px"><div class="prog"><i style="width:48%"></i></div></div><b>+5.1%</b></div>
+          <div class="lrow"><span class="dirtag"><span class="dot" style="background:var(--c-shop)"></span>Shop</span><div style="flex:1;margin:0 12px"><div class="prog"><i style="width:30%"></i></div></div><b>+2.3%</b></div>
+        </div>
+      </div>
+      <div class="card" style="padding:8px 10px">
+        <table class="tbl"><thead><tr><th>Топ‑посты месяца</th><th>Сеть</th><th>Охват</th><th>Вовлечённость</th></tr></thead><tbody>
+          <tr><td><div class="pa"><div class="thumb"></div><b>Morning Iced Latte</b></div></td><td><span class="net ig"></span></td><td><b>128K</b></td><td><span class="delta">9.6%</span></td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="background:linear-gradient(135deg,#caa46f,#6c4a2a)"></div><b>За кадром: обжарка</b></div></td><td><span class="net tt"></span></td><td><b>96K</b></td><td><span class="delta">7.1%</span></td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="background:linear-gradient(135deg,#9a7be0,#5b3fb0)"></div><b>Рецепт чизкейка</b></div></td><td><span class="net tg"></span></td><td><b>54K</b></td><td><span class="delta">6.4%</span></td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- ===================== MESSAGES ===================== -->
+    <section class="screen" data-screen="messages">
+      <div class="phead"><div><h1>Сообщения</h1><p>Комментарии и личные сообщения со всех сетей.</p></div></div>
+      <div class="inbox">
+        <div class="pane convs">
+          <div style="padding:12px;border-bottom:1px solid var(--line)"><div class="field"><span>⌕</span><input placeholder="Поиск…"></div></div>
+          <div class="conv on"><div class="av"><span class="net ig"></span></div><div class="t"><b>@maria_k</b><span>Подскажите, есть ли оатмилк?</span></div><span class="when">2м</span></div>
+          <div class="conv"><div class="av"><span class="net tg"></span></div><div class="t"><b>Дмитрий</b><span>Когда открываетесь в воскр?</span></div><span class="when">15м</span></div>
+          <div class="conv"><div class="av"><span class="net fb"></span></div><div class="t"><b>Anna L.</b><span>Гайд по латте‑арту 🙏</span></div><span class="when">1ч</span></div>
+          <div class="conv"><div class="av"><span class="net ig"></span></div><div class="t"><b>@coffee_fan</b><span>Это новый бленд?</span></div><span class="when">2ч</span></div>
+        </div>
+        <div class="pane thread">
+          <div class="win">● Окно ответа открыто (Instagram, осталось 23 ч)</div>
+          <div class="msgs">
+            <div class="bub in">Привет! Подскажите, есть ли овсяное молоко? 🥛</div>
+            <div class="bub out">Привет! Да, овсяное и миндальное есть ☕️ Добавка бесплатно по будням до 11:00</div>
+            <div class="bub in">Супер, спасибо! Забегу утром 🙌</div>
+          </div>
+          <div class="composer"><div class="field" style="flex:1"><input placeholder="Ответить…"></div><button class="btn primary">Отправить</button></div>
+        </div>
+        <div class="pane ctxp">
+          <div class="big-av"></div>
+          <div style="font-weight:700">@maria_k</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:14px">Instagram · подписана</div>
+          <div class="lrow"><div class="t"><span>Подписчиков</span></div><b>3.2K</b></div>
+          <div class="lrow"><div class="t"><span>Статус</span></div><span class="pill pub" style="font-size:11px"><span class="pd"></span>Клиент</span></div>
+          <button class="btn" style="width:100%;justify-content:center;margin-top:14px">Передать человеку</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== TEAM ===================== -->
+    <section class="screen" data-screen="team">
+      <div class="phead"><div><h1>Команда</h1><p>Доступ по ролям и направлениям.</p></div>
+        <div class="act"><button class="btn primary">+ Пригласить</button></div></div>
+      <div class="card" style="padding:8px 10px">
+        <table class="tbl"><thead><tr><th>Участник</th><th>Роль</th><th>Направления</th><th>Статус</th></tr></thead><tbody>
+          <tr><td><div class="pa"><div class="thumb" style="border-radius:50%;background:linear-gradient(135deg,#c9a27a,#7a5a3a)"></div><div><b>Иван Петров</b><div style="font-size:11.5px;color:var(--muted)">ivan@coffeehouse.ru</div></div></div></td><td><span class="pill sched"><span class="pd"></span>Владелец</span></td><td><span style="font-size:12px;color:var(--muted)">Все</span></td><td><span class="pill pub"><span class="pd"></span>Активен</span></td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="border-radius:50%;background:linear-gradient(135deg,#7bd0e0,#3f8fb0)"></div><div><b>Ольга С.</b><div style="font-size:11.5px;color:var(--muted)">olga@coffeehouse.ru</div></div></div></td><td><span class="pill draft"><span class="pd"></span>Менеджер</span></td><td><span class="dirtag"><span class="dot" style="background:var(--c-coffee)"></span>Coffee</span> <span class="dirtag"><span class="dot" style="background:var(--c-bakery)"></span>Bakery</span></td><td><span class="pill pub"><span class="pd"></span>Активен</span></td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="border-radius:50%;background:linear-gradient(135deg,#e0b27b,#b0763f)"></div><div><b>Павел М.</b><div style="font-size:11.5px;color:var(--muted)">pavel@coffeehouse.ru</div></div></div></td><td><span class="pill draft"><span class="pd"></span>Контентщик</span></td><td><span class="dirtag"><span class="dot" style="background:var(--c-coffee)"></span>Coffee</span></td><td><span class="pill pub"><span class="pd"></span>Активен</span></td></tr>
+          <tr><td><div class="pa"><div class="thumb" style="border-radius:50%;background:linear-gradient(135deg,#b27be0,#7b3fb0)"></div><div><b>Елена В.</b><div style="font-size:11.5px;color:var(--muted)">elena@…</div></div></div></td><td><span class="pill draft"><span class="pd"></span>Аналитик</span></td><td><span style="font-size:12px;color:var(--muted)">Все</span></td><td><span class="pill live"><span class="pd"></span>Приглашён</span></td></tr>
+        </tbody></table>
+      </div>
+    </section>
+
+    <!-- ===================== SETTINGS ===================== -->
+    <section class="screen" data-screen="settings">
+      <div class="phead"><div><h1>Настройки</h1><p>Интеграции, бюджет и параметры рабочего пространства.</p></div></div>
+      <div class="grid2">
+        <div class="card"><div class="card-h"><div class="ttl">Интеграции</div></div>
+          <div class="introw"><div class="ic">◍</div><div class="t"><b>Postproxy</b><span>Публикация и личка во все сети</span></div><span class="pill pub"><span class="pd"></span>Подключено</span></div>
+          <div class="introw"><div class="ic">✦</div><div class="t"><b>kie.ai</b><span>AI‑генерация: текст, фото, видео</span></div><span class="pill pub"><span class="pd"></span>Подключено</span></div>
+          <div class="introw"><div class="ic">▥</div><div class="t"><b>EnsembleData</b><span>Данные о трендах</span></div><span class="pill pub"><span class="pd"></span>Подключено</span></div>
+          <div class="introw"><div class="ic">▢</div><div class="t"><b>Хранилище медиа</b><span>S3 · EU</span></div><span class="pill pub"><span class="pd"></span>Подключено</span></div>
+        </div>
+        <div class="card"><div class="card-h"><div class="ttl">Бюджет и расходы</div><span class="link">$186 / $300</span></div>
+          <div class="prog" style="height:10px;margin-bottom:14px"><i style="width:62%"></i></div>
+          <div class="spendbar"><span class="nm">Postproxy</span><div class="track"><i style="width:30%"></i></div><span class="amt">$48</span></div>
+          <div class="spendbar"><span class="nm">kie.ai · видео</span><div class="track"><i style="width:55%"></i></div><span class="amt">$86</span></div>
+          <div class="spendbar"><span class="nm">kie.ai · фото/текст</span><div class="track"><i style="width:16%"></i></div><span class="amt">$24</span></div>
+          <div class="spendbar"><span class="nm">EnsembleData</span><div class="track"><i style="width:18%"></i></div><span class="amt">$28</span></div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:14px"><div class="switch on" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px;font-weight:600">Алерт при 90% и мягкая остановка генерации</div></div>
+        </div>
+        <div class="card"><div class="card-h"><div class="ttl">Профиль</div></div>
+          <div class="lbl">Имя</div><div class="field" style="margin-bottom:12px"><input value="Иван Петров"></div>
+          <div class="lbl">Язык</div><select class="field" style="margin-bottom:12px"><option>Русский</option><option>English</option></select>
+          <div class="lbl">Тема</div><div class="seg"><button class="on" onclick="setTheme('light')">Светлая</button><button onclick="setTheme('dark')">Тёмная</button></div>
+        </div>
+        <div class="card"><div class="card-h"><div class="ttl">Уведомления</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0"><div class="switch on" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px">Ошибки публикаций</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0"><div class="switch on" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px">Истечение токенов аккаунтов</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0"><div class="switch on" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px">Готовые AI‑генерации</div></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0"><div class="switch" onclick="this.classList.toggle('on')"><i></i></div><div style="font-size:13px">Сработавшие воронки</div></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* theme */
+function setTheme(t){document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('bL').setAttribute('aria-pressed',t==='light');
+  document.getElementById('bD').setAttribute('aria-pressed',t==='dark');}
+
+/* router */
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('active',s.dataset.screen===name));
+  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.go===name));
+  document.body.dataset.screen=name;
+  document.querySelector('.main').scrollIntoView({block:'start'});
+}
+document.addEventListener('click',e=>{const g=e.target.closest('[data-go]');if(g){go(g.dataset.go);}});
+
+/* network glyphs */
+const G={
+ ig:'<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="#fff" stroke="none"/></svg>',
+ tt:'<svg viewBox="0 0 24 24" fill="#fff"><path d="M14 3c.4 2.6 2 4.3 4.6 4.6v3c-1.7 0-3.2-.5-4.6-1.4v6.1c0 3.4-2.7 5.7-5.8 5.7-3 0-5.2-2.3-5.2-5.1 0-3 2.5-5.2 5.6-4.9v3.1c-.4-.1-.9-.2-1.3-.2-1.3 0-2.3 1-2.3 2.2 0 1.3 1 2.2 2.3 2.2 1.4 0 2.4-1 2.4-2.6V3H14z"/></svg>',
+ tg:'<svg viewBox="0 0 24 24" fill="#fff"><path d="M21 4 2.8 11.2c-.9.4-.9 1 .1 1.3l4.6 1.4 1.8 5.4c.2.6.5.6 1 .2l2.6-2.4 4.7 3.5c.7.4 1.2.2 1.4-.7L22.3 5c.2-1-.4-1.4-1.3-1z"/></svg>',
+ fb:'<b>f</b>',th:'<b>@</b>',x:'<b>𝕏</b>'};
+function paintNets(root){(root||document).querySelectorAll('.net').forEach(n=>{if(n.dataset.p)return;for(const k in G){if(n.classList.contains(k)){n.innerHTML=G[k];n.dataset.p=1;}}});}
+
+/* calendar build */
+(function(){
+  const cal=document.getElementById('cal');if(!cal)return;
+  const dows=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  dows.forEach(d=>{const e=document.createElement('div');e.className='dow';e.textContent=d;cal.appendChild(e);});
+  const events={
+    3:[['ig','Утренняя цитата'],['tt','За кадром']],
+    8:[['tg','Совет дня']],
+    12:[['ig','Карусель'],['fb','Промо']],
+    15:[['th','Новинка']],
+    19:[['ig','Reel'],['x','Анонс']],
+    24:[['ig','Iced Latte']],
+    27:[['fb','Выходные'],['tg','Дайджест']]
+  };
+  // start offset (month starts on day index 0=Пн here for demo)
+  for(let i=0;i<35;i++){
+    const day=i-0+1; const inMonth=day>=1&&day<=30;
+    const c=document.createElement('div');c.className='cell'+(inMonth?'':' out')+(day===24?' today':'');
+    const d=document.createElement('div');d.className='d';d.textContent=inMonth?day:(day<1?30+day:day-30);c.appendChild(d);
+    if(events[day]&&inMonth){events[day].forEach(([net,txt])=>{const ev=document.createElement('div');ev.className='ev';ev.innerHTML='<span class="net '+net+'"></span>'+txt;c.appendChild(ev);});}
+    cal.appendChild(c);
+  }
+})();
+
+/* media grid */
+(function(){
+  const m=document.getElementById('mediaGrid');if(!m)return;
+  const grad=['#caa46f,#6c4a2a','#b9925f,#5e3f22','#9a7be0,#5b3fb0','#3fb5ad,#1d7a73','#e0b27b,#b0763f','#cda472,#6e4a28','#c08a55,#5a3c1f','#d4b483,#7a5a30'];
+  const tags=['Iced Latte','Обжарка','Чизкейк','Воркшоп','Витрина','Бариста','Зерно','Меню'];
+  for(let i=0;i<12;i++){
+    const g=grad[i%grad.length];const ai=i%3===0;
+    const el=document.createElement('div');el.style.cssText='border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)';
+    el.innerHTML='<div style="height:120px;background:linear-gradient(135deg,'+g+');position:relative">'+(ai?'<span class="pill sched" style="position:absolute;left:8px;top:8px;font-size:10px">✦ AI</span>':'')+(i%4===0?'<span style="position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px">↺ 3</span>':'')+'</div><div style="padding:9px 11px"><b style="font-size:12.5px">'+tags[i%tags.length]+'</b><div style="font-size:11px;color:var(--muted)">'+(i%2?'видео':'фото')+'</div></div>';
+    m.appendChild(el);
+  }
+})();
+
+paintNets();
+</script>
+</body>
+</html>

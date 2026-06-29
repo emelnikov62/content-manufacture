@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  EDITOR
+  VIEWER
+}
+
+enum Network {
+  INSTAGRAM
+  TIKTOK
+  TELEGRAM
+  THREADS
+  FACEBOOK
+  TWITTER
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  ERROR
+}
+
+enum PublicationStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+  ERROR
+}
+
+enum AccountStatus {
+  CONNECTED
+  ERROR
+  TOKEN_EXPIRING
+  DISCONNECTED
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
+enum AssetSource {
+  UPLOADED
+  AI_GENERATED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  avatarUrl    String?
+  locale       String   @default("ru")
+  theme        String   @default("dark")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userBrands UserBrand[]
+  posts      Post[]
+  assets     Asset[]
+  auditLogs  AuditLog[]
+
+  @@map("users")
+}
+
+model Brand {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  brandVoice      String?
+  targetAudience  String?
+  color           String   @default("#C6F24E")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userBrands UserBrand[]
+  accounts   Account[]
+  assets     Asset[]
+  posts      Post[]
+  auditLogs  AuditLog[]
+
+  @@map("brands")
+}
+
+model UserBrand {
+  userId  String
+  brandId String
+  role    Role
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@id([userId, brandId])
+  @@map("user_brands")
+}
+
+model Account {
+  id                  String        @id @default(cuid())
+  brandId             String
+  network             Network
+  postproxyProfileId  String
+  handle              String
+  status              AccountStatus @default(CONNECTED)
+  statusMessage       String?
+  tokenExpiresAt      DateTime?
+  dailyPostLimit      Int           @default(100)
+  createdAt           DateTime      @default(now())
+
+  brand       Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  postTargets PostTarget[]
+
+  @@map("accounts")
+}
+
+model Asset {
+  id           String      @id @default(cuid())
+  brandId      String
+  type         AssetType
+  source       AssetSource @default(UPLOADED)
+  url          String
+  thumbnailUrl String?
+  filename     String
+  mimeType     String
+  sizeBytes    Int
+  tags         String[]    @default([])
+  createdById  String
+  createdAt    DateTime    @default(now())
+
+  brand     Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  createdBy User       @relation(fields: [createdById], references: [id])
+  posts     PostAsset[]
+
+  @@map("assets")
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  brandId     String
+  body        String     @default("")
+  status      PostStatus @default(DRAFT)
+  scheduledAt DateTime?
+  createdById String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  brand     Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdById], references: [id])
+  targets   PostTarget[]
+  assets    PostAsset[]
+
+  @@map("posts")
+}
+
+model PostAsset {
+  postId  String
+  assetId String
+  order   Int    @default(0)
+
+  post  Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@id([postId, assetId])
+  @@map("post_assets")
+}
+
+model PostTarget {
+  id                String @id @default(cuid())
+  postId            String
+  accountId         String
+  networkParamsJson Json   @default("{}")
+
+  post        Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  publication Publication?
+
+  @@map("post_targets")
+}
+
+model Publication {
+  id           String            @id @default(cuid())
+  postTargetId String            @unique
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  status       PublicationStatus @default(PENDING)
+  externalId   String?
+  error        String?
+  retryCount   Int               @default(0)
+
+  postTarget PostTarget @relation(fields: [postTargetId], references: [id], onDelete: Cascade)
+
+  @@map("publications")
+}
+
+model AnalyticsSnapshot {
+  id          String   @id @default(cuid())
+  accountId   String
+  date        DateTime @db.Date
+  followers   Int      @default(0)
+  reach       Int      @default(0)
+  impressions Int      @default(0)
+  engagement  Float    @default(0)
+  postsCount  Int      @default(0)
+
+  @@unique([accountId, date])
+  @@map("analytics_snapshots")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  brandId   String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id])
+  brand Brand? @relation(fields: [brandId], references: [id])
+
+  @@index([brandId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model WebhookEvent {
+  id          String    @id @default(cuid())
+  source      String
+  type        String
+  payloadJson Json
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([source, type, createdAt])
+  @@map("webhook_events")
+}
