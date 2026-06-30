@@ -281,3 +281,7 @@
 .shadow-card {
   box-shadow: var(--shadow);
 }
+
+button, [role="button"], a, select, input[type="checkbox"], input[type="radio"], label[for] {
+  cursor: pointer;
+}

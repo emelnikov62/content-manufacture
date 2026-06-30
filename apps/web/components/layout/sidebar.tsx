@@ -11,7 +11,7 @@ import {
   Users,
   Settings,
   ChevronLeft,
-  MoreHorizontal,
+  LogOut,
   Sparkles,
   GitFork,
   MessageSquare,
@@ -212,7 +212,7 @@ export function Sidebar() {
                   window.location.href = '/login';
                 }}
               >
-                <MoreHorizontal className="h-4 w-4" />
+                <LogOut className="h-4 w-4" />
               </button>
             </>
           )}
