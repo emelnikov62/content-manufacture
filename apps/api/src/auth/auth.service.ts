@@ -22,7 +22,8 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await this.usersService.create({ email, passwordHash, name });
-    return this.generateTokens(user.id, user.email);
+    const tokens = this.generateTokens(user.id, user.email);
+    return { ...tokens, user: this.profileFromUser(user) };
   }
 
   async login(email: string, password: string) {
@@ -36,7 +37,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.generateTokens(user.id, user.email);
+    const full = await this.usersService.findById(user.id);
+    const tokens = this.generateTokens(user.id, user.email);
+    return { ...tokens, user: this.profileFromUser(full!) };
+  }
+
+  private profileFromUser(user: any) {
+    const { passwordHash, ...profile } = user;
+    return profile;
   }
 
   async refresh(refreshToken: string) {

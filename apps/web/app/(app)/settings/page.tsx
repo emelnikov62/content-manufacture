@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, ChevronDown, Eye, EyeOff, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
@@ -82,57 +82,52 @@ function IntegrationCard({
   isLoading,
   verifyStatus,
   isVerifying,
+  onSaved,
 }: {
   integration: (typeof INTEGRATIONS)[number];
   data?: IntegrationsData;
   isLoading: boolean;
   verifyStatus?: VerifyStatus;
   isVerifying: boolean;
+  onSaved: () => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({});
   const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
-  const queryClient = useQueryClient();
+  const [saving, setSaving] = useState(false);
 
   const hasAnyConfigured = integration.fields.some((f) => data?.[f.key]?.configured);
 
-  const [saving, setSaving] = useState(false);
-
-  const mutation = useMutation({
-    mutationFn: (payload: Record<string, string>) =>
-      api.put('/settings/integrations', payload),
-    onSuccess: async () => {
-      setSaving(true);
-      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      await queryClient.refetchQueries({ queryKey: ['integrations-verify'] });
-      setValues({});
-      setRevealedValues({});
-      setVisibleFields({});
-      setSaving(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    },
-  });
-
-  const handleSave = () => {
-    if (mutation.isPending || saving) return;
+  const handleSave = async () => {
+    if (saving) return;
     const payload: Record<string, string> = {};
     for (const field of integration.fields) {
-      if (values[field.key] !== undefined && values[field.key] !== '') {
+      if (values[field.key] !== undefined) {
         payload[field.key] = values[field.key];
       }
     }
-    if (Object.keys(payload).length > 0) {
-      mutation.mutate(payload);
+    if (Object.keys(payload).length === 0) return;
+
+    setSaving(true);
+    try {
+      await api.put('/settings/integrations', payload);
+      await onSaved();
+      setValues({});
+      setRevealedValues({});
+      setVisibleFields({});
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error('Integration save failed:', e);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const isBusy = mutation.isPending || saving;
-
   const hasChanges = integration.fields.some(
-    (f) => values[f.key] !== undefined && values[f.key] !== '',
+    (f) => values[f.key] !== undefined,
   );
 
   return (
@@ -250,15 +245,15 @@ function IntegrationCard({
           <div className="flex items-center gap-2 mt-1">
             <button
               onClick={handleSave}
-              disabled={!hasChanges || isBusy}
+              disabled={!hasChanges || saving}
               className="px-4 py-1.5 rounded-[11px] bg-primary text-primary-foreground text-[13px] font-bold disabled:opacity-40 transition-opacity flex items-center gap-1.5"
             >
-              {isBusy ? (
+              {saving ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : saved ? (
                 <Check className="h-3.5 w-3.5" />
               ) : null}
-              {isBusy ? 'Проверка...' : saved ? 'Сохранено' : 'Сохранить'}
+              {saving ? 'Проверка...' : saved ? 'Сохранено' : 'Сохранить'}
             </button>
           </div>
         </div>
@@ -281,6 +276,15 @@ export default function SettingsPage() {
     queryFn: () => api.post('/settings/integrations/verify'),
     retry: false,
   });
+
+  const handleSaved = async () => {
+    const [newData, newVerify] = await Promise.all([
+      api.get<IntegrationsData>('/settings/integrations'),
+      api.post<VerifyData>('/settings/integrations/verify'),
+    ]);
+    queryClient.setQueryData(['integrations'], newData);
+    queryClient.setQueryData(['integrations-verify'], newVerify);
+  };
 
   const [notifErrors, setNotifErrors] = useState(true);
   const [notifTokens, setNotifTokens] = useState(true);
@@ -318,6 +322,7 @@ export default function SettingsPage() {
                 isLoading={isLoading}
                 verifyStatus={verifyData?.[int.key]}
                 isVerifying={isVerifying}
+                onSaved={handleSaved}
               />
             </div>
           ))}

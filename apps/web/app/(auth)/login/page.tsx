@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store';
 
 export default function LoginPage() {
   const router = useRouter();
-  const setTokens = useAppStore((s) => s.setTokens);
+  const setAuth = useAppStore((s) => s.setAuth);
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,11 +24,11 @@ export default function LoginPage() {
       const endpoint = isRegister ? '/auth/register' : '/auth/login';
       const body = isRegister ? { email, password, name } : { email, password };
 
-      const data = await api.post<{ accessToken: string; refreshToken: string }>(
+      const data = await api.post<{ accessToken: string; refreshToken: string; user: any }>(
         endpoint,
         body,
       );
-      setTokens(data.accessToken, data.refreshToken);
+      setAuth(data.accessToken, data.refreshToken, data.user);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Ошибка авторизации');

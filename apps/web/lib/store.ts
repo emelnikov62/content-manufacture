@@ -4,6 +4,15 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useEffect, useState } from 'react';
 
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string | null;
+  locale: string;
+  theme: string;
+}
+
 interface AppState {
   currentBrandId: string | null;
   setCurrentBrandId: (id: string | null) => void;
@@ -13,7 +22,9 @@ interface AppState {
   toggleMobileMenu: () => void;
   accessToken: string | null;
   refreshToken: string | null;
+  user: UserProfile | null;
   setTokens: (access: string, refresh: string) => void;
+  setAuth: (access: string, refresh: string, user: UserProfile) => void;
   clearTokens: () => void;
 }
 
@@ -30,10 +41,13 @@ export const useAppStore = create<AppState>()(
         set((s) => ({ mobileMenuOpen: !s.mobileMenuOpen })),
       accessToken: null,
       refreshToken: null,
+      user: null,
       setTokens: (access, refresh) =>
         set({ accessToken: access, refreshToken: refresh }),
+      setAuth: (access, refresh, user) =>
+        set({ accessToken: access, refreshToken: refresh, user }),
       clearTokens: () =>
-        set({ accessToken: null, refreshToken: null, currentBrandId: null }),
+        set({ accessToken: null, refreshToken: null, user: null, currentBrandId: null }),
     }),
     { name: 'content-manufacture-store' },
   ),

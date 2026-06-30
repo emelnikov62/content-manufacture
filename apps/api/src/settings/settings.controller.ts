@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, UseGuards, HttpCode } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { SettingsService } from './settings.service';
 
@@ -23,6 +23,7 @@ export class SettingsController {
   }
 
   @Put('integrations')
+  @HttpCode(204)
   updateIntegrations(@Body() body: Record<string, string>) {
     return this.settingsService.updateIntegrations(body);
   }

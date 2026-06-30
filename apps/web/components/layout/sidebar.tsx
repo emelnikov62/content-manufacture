@@ -61,6 +61,7 @@ export function Sidebar() {
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useAppStore((s) => s.toggleSidebar);
   const clearTokens = useAppStore((s) => s.clearTokens);
+  const user = useAppStore((s) => s.user);
   const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen);
   const toggleMobileMenu = useAppStore((s) => s.toggleMobileMenu);
 
@@ -196,13 +197,13 @@ export function Sidebar() {
         {/* User profile */}
         <div className={cn('flex items-center gap-2.5 border-t border-border pt-3 mt-3', collapsed && !mobileMenuOpen && 'justify-center')}>
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-800 text-white text-xs font-bold">
-            U
+            {user?.name?.[0]?.toUpperCase() ?? 'U'}
           </div>
           {(!collapsed || mobileMenuOpen) && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold leading-tight truncate">Пользователь</p>
-                <p className="text-[11px] text-muted-foreground">Владелец</p>
+                <p className="text-[13px] font-bold leading-tight truncate">{user?.name ?? 'Пользователь'}</p>
+                <p className="text-[11px] text-muted-foreground">{user?.email ?? ''}</p>
               </div>
               <button
                 className="text-muted-foreground hover:text-foreground"

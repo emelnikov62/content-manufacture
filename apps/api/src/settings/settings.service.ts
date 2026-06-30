@@ -120,13 +120,14 @@ export class SettingsService {
   private async checkKie(apiKey: string): Promise<{ status: IntegrationStatus; error?: string }> {
     if (!apiKey) return { status: 'not_configured' };
     try {
-      const res = await fetch('https://api.kie.ai/v1/me', {
+      const res = await fetch('https://api.kie.ai/api/v1/chat/credit', {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(5000),
       });
-      if (res.ok) return { status: 'connected' };
-      if (res.status === 401) return { status: 'error', error: 'Неверный API-ключ' };
-      return { status: 'error', error: `HTTP ${res.status}` };
+      const body = await res.json().catch(() => ({}));
+      if (body.code === 401 || body.code === 403) return { status: 'error', error: 'Неверный API-ключ' };
+      if (res.ok && body.code !== 401) return { status: 'connected' };
+      return { status: 'error', error: body.msg || `HTTP ${res.status}` };
     } catch (e: any) {
       return { status: 'error', error: e.message };
     }
@@ -156,45 +157,63 @@ export class SettingsService {
     if (!endpoint || !accessKey || !secretKey || !bucket) return { status: 'not_configured' };
 
     try {
-      const now = new Date();
-      const dateStamp = now.toISOString().replace(/[-:]/g, '').slice(0, 8);
-      const amzDate = dateStamp + 'T' + now.toISOString().replace(/[-:]/g, '').slice(9, 15) + 'Z';
-      const url = new URL(`/${bucket}`, endpoint);
-      const host = url.host;
-      const region = 'us-east-1';
+      const epNorm = endpoint.replace(/\/+$/, '');
+      const url = `${epNorm}/${bucket}?list-type=2&max-keys=1`;
+      const parsed = new URL(url);
+      const host = parsed.host;
+      const path = parsed.pathname;
+      const query = parsed.search.slice(1);
 
-      const canonicalHeaders = `host:${host}\nx-amz-date:${amzDate}\n`;
-      const signedHeaders = 'host;x-amz-date';
+      const now = new Date();
+      const amzDate = now.toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
+      const dateStamp = amzDate.slice(0, 8);
+      const region = 'us-east-1';
+      const service = 's3';
+
       const payloadHash = crypto.createHash('sha256').update('').digest('hex');
-      const canonicalRequest = `HEAD\n/${bucket}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
-      const credentialScope = `${dateStamp}/${region}/s3/aws4_request`;
-      const stringToSign = `AWS4-HMAC-SHA256\n${amzDate}\n${credentialScope}\n${crypto.createHash('sha256').update(canonicalRequest).digest('hex')}`;
+
+      const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+      const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+
+      const canonicalRequest = [
+        'GET', path, query, canonicalHeaders, signedHeaders, payloadHash,
+      ].join('\n');
+
+      const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`;
+      const stringToSign = [
+        'AWS4-HMAC-SHA256', amzDate, credentialScope,
+        crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
+      ].join('\n');
 
       const sign = (key: Buffer | string, msg: string) =>
         crypto.createHmac('sha256', key).update(msg).digest();
-      const signingKey = sign(
-        sign(sign(sign(`AWS4${secretKey}`, dateStamp), region), 's3'),
-        'aws4_request',
-      );
+      const signingKey = sign(sign(sign(sign(`AWS4${secretKey}`, dateStamp), region), service), 'aws4_request');
       const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
-      const authHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
-      const res = await fetch(url.toString(), {
-        method: 'HEAD',
+      const authorization = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+      const res = await fetch(url, {
+        method: 'GET',
         headers: {
           Host: host,
           'x-amz-date': amzDate,
           'x-amz-content-sha256': payloadHash,
-          Authorization: authHeader,
+          Authorization: authorization,
         },
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(10000),
       });
 
-      if (res.ok || res.status === 301) return { status: 'connected' };
-      if (res.status === 403) return { status: 'error', error: 'Доступ запрещён (проверьте ключи)' };
+      if (res.ok) return { status: 'connected' };
+      const body = await res.text();
+      if (res.status === 403) {
+        if (body.includes('SignatureDoesNotMatch')) return { status: 'error', error: 'Неверный Secret Key' };
+        if (body.includes('InvalidAccessKeyId')) return { status: 'error', error: 'Неверный Access Key' };
+        return { status: 'error', error: 'Доступ запрещён' };
+      }
       if (res.status === 404) return { status: 'error', error: 'Бакет не найден' };
       return { status: 'error', error: `HTTP ${res.status}` };
     } catch (e: any) {
+      if (e.cause?.code === 'ENOTFOUND') return { status: 'error', error: 'Endpoint недоступен' };
       return { status: 'error', error: e.message };
     }
   }
