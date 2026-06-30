@@ -81,7 +81,7 @@ export default function MediaPage() {
         formData.append('brandId', currentBrandId);
 
         await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/assets/upload`,
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/assets/upload`,
           {
             method: 'POST',
             headers: { Authorization: `Bearer ${accessToken}` },

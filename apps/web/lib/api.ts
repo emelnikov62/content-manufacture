@@ -1,6 +1,6 @@
 import { useAppStore } from './store';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 class ApiClient {
   private getToken(): string | null {
@@ -18,7 +18,7 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const res = await fetch(`${API_URL}/api${path}`, {
+    const res = await fetch(`${API_URL}${path}`, {
       ...options,
       headers,
     });
