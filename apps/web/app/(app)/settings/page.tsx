@@ -97,19 +97,24 @@ function IntegrationCard({
 
   const hasAnyConfigured = integration.fields.some((f) => data?.[f.key]?.configured);
 
+  const [saving, setSaving] = useState(false);
+
   const mutation = useMutation({
     mutationFn: (payload: Record<string, string>) =>
       api.put('/settings/integrations', payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['integrations'] });
-      queryClient.invalidateQueries({ queryKey: ['integrations-verify'] });
+    onSuccess: async () => {
+      setSaving(true);
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      await queryClient.refetchQueries({ queryKey: ['integrations-verify'] });
       setValues({});
+      setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     },
   });
 
   const handleSave = () => {
+    if (mutation.isPending || saving) return;
     const payload: Record<string, string> = {};
     for (const field of integration.fields) {
       if (values[field.key] !== undefined && values[field.key] !== '') {
@@ -120,6 +125,8 @@ function IntegrationCard({
       mutation.mutate(payload);
     }
   };
+
+  const isBusy = mutation.isPending || saving;
 
   const hasChanges = integration.fields.some(
     (f) => values[f.key] !== undefined && values[f.key] !== '',
@@ -185,6 +192,10 @@ function IntegrationCard({
                   <div className="flex-1 border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
                     <input
                       type={isVisible ? 'text' : 'password'}
+                      name={`integration_${field.key}`}
+                      autoComplete="off"
+                      data-1p-ignore
+                      data-lpignore="true"
                       placeholder={existing?.configured ? existing.value : 'Не задан'}
                       value={values[field.key] ?? ''}
                       onChange={(e) =>
@@ -221,15 +232,15 @@ function IntegrationCard({
           <div className="flex items-center gap-2 mt-1">
             <button
               onClick={handleSave}
-              disabled={!hasChanges || mutation.isPending}
+              disabled={!hasChanges || isBusy}
               className="px-4 py-1.5 rounded-[11px] bg-primary text-primary-foreground text-[13px] font-bold disabled:opacity-40 transition-opacity flex items-center gap-1.5"
             >
-              {mutation.isPending ? (
+              {isBusy ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : saved ? (
                 <Check className="h-3.5 w-3.5" />
               ) : null}
-              {saved ? 'Сохранено' : 'Сохранить'}
+              {isBusy ? 'Проверка...' : saved ? 'Сохранено' : 'Сохранить'}
             </button>
           </div>
         </div>
