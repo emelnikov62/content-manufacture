@@ -13,6 +13,13 @@ interface IntegrationValue {
 
 type IntegrationsData = Record<string, IntegrationValue>;
 
+interface VerifyStatus {
+  status: 'connected' | 'error' | 'not_configured';
+  error?: string;
+}
+
+type VerifyData = Record<string, VerifyStatus>;
+
 const INTEGRATIONS = [
   {
     key: 'postproxy',
@@ -38,6 +45,18 @@ const INTEGRATIONS = [
     icon: '▥',
     fields: [{ key: 'ENSEMBLE_DATA_API_KEY', label: 'API Key' }],
   },
+  {
+    key: 'storage',
+    name: 'Хранилище медиа',
+    description: 'S3-совместимое хранилище файлов',
+    icon: '▢',
+    fields: [
+      { key: 'S3_ENDPOINT', label: 'Endpoint', secret: false },
+      { key: 'S3_BUCKET', label: 'Bucket', secret: false },
+      { key: 'S3_ACCESS_KEY', label: 'Access Key' },
+      { key: 'S3_SECRET_KEY', label: 'Secret Key' },
+    ],
+  },
 ];
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -61,10 +80,14 @@ function IntegrationCard({
   integration,
   data,
   isLoading,
+  verifyStatus,
+  isVerifying,
 }: {
   integration: (typeof INTEGRATIONS)[number];
   data?: IntegrationsData;
   isLoading: boolean;
+  verifyStatus?: VerifyStatus;
+  isVerifying: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -79,6 +102,7 @@ function IntegrationCard({
       api.put('/settings/integrations', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      queryClient.invalidateQueries({ queryKey: ['integrations-verify'] });
       setValues({});
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -116,12 +140,22 @@ function IntegrationCard({
             {integration.description}
           </span>
         </div>
-        {isLoading ? (
+        {isLoading || isVerifying ? (
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        ) : hasAnyConfigured ? (
+        ) : verifyStatus?.status === 'connected' ? (
           <span className="pill-status pill-published">
             <span className="pill-dot" />
             Подключено
+          </span>
+        ) : verifyStatus?.status === 'error' ? (
+          <span className="pill-status pill-error" title={verifyStatus.error}>
+            <span className="pill-dot" />
+            Ошибка
+          </span>
+        ) : hasAnyConfigured ? (
+          <span className="pill-status pill-scheduled">
+            <span className="pill-dot" />
+            Не проверено
           </span>
         ) : (
           <span className="pill-status pill-draft">
@@ -140,7 +174,8 @@ function IntegrationCard({
         <div className="pb-3 pl-[50px] flex flex-col gap-2.5">
           {integration.fields.map((field) => {
             const existing = data?.[field.key];
-            const isVisible = visibleFields[field.key] ?? false;
+            const isSecret = !('secret' in field) || field.secret !== false;
+            const isVisible = !isSecret || (visibleFields[field.key] ?? false);
             return (
               <div key={field.key}>
                 <label className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-1.5 block">
@@ -157,25 +192,32 @@ function IntegrationCard({
                       }
                       className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
                     />
-                    <button
-                      type="button"
-                      className="px-2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setVisibleFields((v) => ({ ...v, [field.key]: !isVisible }));
-                      }}
-                    >
-                      {isVisible ? (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      ) : (
-                        <Eye className="h-3.5 w-3.5" />
-                      )}
-                    </button>
+                    {isSecret && (
+                      <button
+                        type="button"
+                        className="px-2 text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setVisibleFields((v) => ({ ...v, [field.key]: !visibleFields[field.key] }));
+                        }}
+                      >
+                        {visibleFields[field.key] ? (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
             );
           })}
+          {verifyStatus?.status === 'error' && verifyStatus.error && (
+            <div className="text-[12px] text-red-500 bg-red-500/10 rounded-[9px] px-3 py-1.5">
+              {verifyStatus.error}
+            </div>
+          )}
           <div className="flex items-center gap-2 mt-1">
             <button
               onClick={handleSave}
@@ -198,9 +240,16 @@ function IntegrationCard({
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery<IntegrationsData>({
     queryKey: ['integrations'],
     queryFn: () => api.get('/settings/integrations'),
+    retry: false,
+  });
+
+  const { data: verifyData, isLoading: isVerifying } = useQuery<VerifyData>({
+    queryKey: ['integrations-verify'],
+    queryFn: () => api.post('/settings/integrations/verify'),
     retry: false,
   });
 
@@ -238,24 +287,11 @@ export default function SettingsPage() {
                 integration={int}
                 data={data}
                 isLoading={isLoading}
+                verifyStatus={verifyData?.[int.key]}
+                isVerifying={isVerifying}
               />
             </div>
           ))}
-          <div className="flex items-center gap-3 py-[13px] border-t border-border">
-            <div className="w-[38px] h-[38px] rounded-[11px] bg-secondary grid place-items-center text-[16px]">
-              ▢
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="block text-[13.5px] font-bold">Хранилище медиа</span>
-              <span className="text-[11.5px] text-muted-foreground">
-                Локальное (uploads/)
-              </span>
-            </div>
-            <span className="pill-status pill-published">
-              <span className="pill-dot" />
-              Подключено
-            </span>
-          </div>
         </div>
 
         {/* Budget */}
