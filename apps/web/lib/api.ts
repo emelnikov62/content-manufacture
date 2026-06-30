@@ -45,10 +45,36 @@ class ApiClient {
   }
 
   post<T>(path: string, body?: unknown) {
+    if (body instanceof FormData) {
+      return this.upload<T>(path, body);
+    }
     return this.request<T>(path, {
       method: 'POST',
       body: body ? JSON.stringify(body) : undefined,
     });
+  }
+
+  private async upload<T>(path: string, body: FormData): Promise<T> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers,
+      body,
+    });
+
+    if (res.status === 401) {
+      useAppStore.getState().clearTokens();
+      if (typeof window !== 'undefined') window.location.href = '/login';
+      throw new Error('Unauthorized');
+    }
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}));
+      throw new Error(b.message || `API error: ${res.status}`);
+    }
+    return res.json();
   }
 
   put<T>(path: string, body?: unknown) {

@@ -67,10 +67,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  userBrands UserBrand[]
-  posts      Post[]
-  assets     Asset[]
-  auditLogs  AuditLog[]
+  userBrands  UserBrand[]
+  posts       Post[]
+  assets      Asset[]
+  auditLogs   AuditLog[]
+  generations Generation[]
 
   @@map("users")
 }
@@ -85,11 +86,12 @@ model Brand {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  userBrands UserBrand[]
-  accounts   Account[]
-  assets     Asset[]
-  posts      Post[]
-  auditLogs  AuditLog[]
+  userBrands  UserBrand[]
+  accounts    Account[]
+  assets      Asset[]
+  posts       Post[]
+  auditLogs   AuditLog[]
+  generations Generation[]
 
   @@map("brands")
 }
@@ -253,4 +255,37 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+enum GenerationStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  ERROR
+}
+
+model Generation {
+  id        String           @id @default(cuid())
+  userId    String
+  brandId   String
+  model     String
+  modelName String
+  provider  String
+  type      String           @default("text")
+  prompt    String
+  params    Json?
+  result    String?
+  status    GenerationStatus @default(PENDING)
+  error     String?
+  tokens    Int?
+  cost      Float?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id])
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId, createdAt])
+  @@index([userId, createdAt])
+  @@map("generations")
 }

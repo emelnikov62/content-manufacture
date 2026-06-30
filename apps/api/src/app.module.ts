@@ -16,6 +16,7 @@ import { AuditModule } from './audit/audit.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
+import { GenerationsModule } from './generations/generations.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { SettingsModule } from './settings/settings.module';
     WebhooksModule,
     AnalyticsModule,
     SettingsModule,
+    GenerationsModule,
   ],
 })
 export class AppModule {}
