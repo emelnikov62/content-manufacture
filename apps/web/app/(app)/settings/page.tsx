@@ -191,8 +191,7 @@ function IntegrationCard({
                 <div className="flex gap-2">
                   <div className="flex-1 border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
                     <input
-                      type={isVisible ? 'text' : 'password'}
-                      name={`integration_${field.key}`}
+                      type="text"
                       autoComplete="off"
                       data-1p-ignore
                       data-lpignore="true"
@@ -202,6 +201,7 @@ function IntegrationCard({
                         setValues((v) => ({ ...v, [field.key]: e.target.value }))
                       }
                       className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
+                      style={isVisible ? undefined : { WebkitTextSecurity: 'disc', textSecurity: 'disc' } as React.CSSProperties}
                     />
                     {isSecret && (
                       <button
