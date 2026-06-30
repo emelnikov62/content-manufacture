@@ -87,6 +87,14 @@ export class SettingsService {
     await this.prisma.$transaction(ops);
   }
 
+  async revealKey(key: string): Promise<{ value: string }> {
+    if (!(INTEGRATION_KEYS as readonly string[]).includes(key)) {
+      return { value: '' };
+    }
+    const row = await this.prisma.setting.findUnique({ where: { key } });
+    return { value: row?.value ?? '' };
+  }
+
   private unwrap(
     result: PromiseSettledResult<{ status: IntegrationStatus; error?: string }>,
   ): { status: IntegrationStatus; error?: string } {

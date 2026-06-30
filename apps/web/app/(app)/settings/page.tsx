@@ -92,6 +92,7 @@ function IntegrationCard({
   const [expanded, setExpanded] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
   const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({});
+  const [revealedValues, setRevealedValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
   const queryClient = useQueryClient();
 
@@ -107,6 +108,8 @@ function IntegrationCard({
       await queryClient.invalidateQueries({ queryKey: ['integrations'] });
       await queryClient.refetchQueries({ queryKey: ['integrations-verify'] });
       setValues({});
+      setRevealedValues({});
+      setVisibleFields({});
       setSaving(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -182,7 +185,25 @@ function IntegrationCard({
           {integration.fields.map((field) => {
             const existing = data?.[field.key];
             const isSecret = !('secret' in field) || field.secret !== false;
-            const isVisible = !isSecret || (visibleFields[field.key] ?? false);
+            const isRevealed = visibleFields[field.key] ?? false;
+            const revealed = revealedValues[field.key];
+            const displayValue = values[field.key] ?? (isRevealed && revealed != null ? revealed : '');
+            const isEditing = values[field.key] !== undefined;
+
+            const toggleReveal = async (e: React.MouseEvent) => {
+              e.stopPropagation();
+              if (isRevealed) {
+                setVisibleFields((v) => ({ ...v, [field.key]: false }));
+                if (!isEditing) setRevealedValues((v) => { const next = { ...v }; delete next[field.key]; return next; });
+                return;
+              }
+              if (existing?.configured && revealed == null) {
+                const res = await api.get<{ value: string }>(`/settings/integrations/reveal/${field.key}`);
+                setRevealedValues((v) => ({ ...v, [field.key]: res.value }));
+              }
+              setVisibleFields((v) => ({ ...v, [field.key]: true }));
+            };
+
             return (
               <div key={field.key}>
                 <label className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-1.5 block">
@@ -196,23 +217,20 @@ function IntegrationCard({
                       data-1p-ignore
                       data-lpignore="true"
                       placeholder={existing?.configured ? existing.value : 'Не задан'}
-                      value={values[field.key] ?? ''}
+                      value={displayValue}
                       onChange={(e) =>
                         setValues((v) => ({ ...v, [field.key]: e.target.value }))
                       }
                       className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
-                      style={isVisible ? undefined : { WebkitTextSecurity: 'disc', textSecurity: 'disc' } as React.CSSProperties}
+                      style={isSecret && !isRevealed ? { WebkitTextSecurity: 'disc', textSecurity: 'disc' } as React.CSSProperties : undefined}
                     />
                     {isSecret && (
                       <button
                         type="button"
                         className="px-2 text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setVisibleFields((v) => ({ ...v, [field.key]: !visibleFields[field.key] }));
-                        }}
+                        onClick={toggleReveal}
                       >
-                        {visibleFields[field.key] ? (
+                        {isRevealed ? (
                           <EyeOff className="h-3.5 w-3.5" />
                         ) : (
                           <Eye className="h-3.5 w-3.5" />
