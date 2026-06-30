@@ -1,18 +1,19 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Controller, Get, Put, Body, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { SettingsService } from './settings.service';
 
 @UseGuards(JwtAuthGuard)
 @Controller('settings')
 export class SettingsController {
-  constructor(private config: ConfigService) {}
+  constructor(private settingsService: SettingsService) {}
 
   @Get('integrations')
-  integrations() {
-    return {
-      postproxy: !!this.config.get('POSTPROXY_API_KEY'),
-      kie: !!this.config.get('KIE_API_KEY'),
-      ensembleData: !!this.config.get('ENSEMBLE_API_KEY'),
-    };
+  getIntegrations() {
+    return this.settingsService.getIntegrations();
+  }
+
+  @Put('integrations')
+  updateIntegrations(@Body() body: Record<string, string>) {
+    return this.settingsService.updateIntegrations(body);
   }
 }

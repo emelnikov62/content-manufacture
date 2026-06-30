@@ -1,21 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Loader2, ChevronDown, Eye, EyeOff, Check } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
 
-interface IntegrationStatus {
-  postproxy: boolean;
-  kie: boolean;
-  ensembleData: boolean;
+interface IntegrationValue {
+  configured: boolean;
+  value: string;
 }
 
+type IntegrationsData = Record<string, IntegrationValue>;
+
 const INTEGRATIONS = [
-  { key: 'postproxy' as const, name: 'Postproxy', description: 'Публикация и личка во все сети', icon: '◍' },
-  { key: 'kie' as const, name: 'kie.ai', description: 'AI‑генерация: текст, фото, видео', icon: '✦' },
-  { key: 'ensembleData' as const, name: 'EnsembleData', description: 'Данные о трендах', icon: '▥' },
+  {
+    key: 'postproxy',
+    name: 'Postproxy',
+    description: 'Публикация и личка во все сети',
+    icon: '◍',
+    fields: [
+      { key: 'POSTPROXY_API_KEY', label: 'API Key' },
+      { key: 'POSTPROXY_WEBHOOK_SECRET', label: 'Webhook Secret' },
+    ],
+  },
+  {
+    key: 'kie',
+    name: 'kie.ai',
+    description: 'AI‑генерация: текст, фото, видео',
+    icon: '✦',
+    fields: [{ key: 'KIE_API_KEY', label: 'API Key' }],
+  },
+  {
+    key: 'ensembleData',
+    name: 'EnsembleData',
+    description: 'Данные о трендах',
+    icon: '▥',
+    fields: [{ key: 'ENSEMBLE_DATA_API_KEY', label: 'API Key' }],
+  },
 ];
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -35,10 +57,149 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   );
 }
 
+function IntegrationCard({
+  integration,
+  data,
+  isLoading,
+}: {
+  integration: (typeof INTEGRATIONS)[number];
+  data?: IntegrationsData;
+  isLoading: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [visibleFields, setVisibleFields] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState(false);
+  const queryClient = useQueryClient();
+
+  const hasAnyConfigured = integration.fields.some((f) => data?.[f.key]?.configured);
+
+  const mutation = useMutation({
+    mutationFn: (payload: Record<string, string>) =>
+      api.put('/settings/integrations', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['integrations'] });
+      setValues({});
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  const handleSave = () => {
+    const payload: Record<string, string> = {};
+    for (const field of integration.fields) {
+      if (values[field.key] !== undefined && values[field.key] !== '') {
+        payload[field.key] = values[field.key];
+      }
+    }
+    if (Object.keys(payload).length > 0) {
+      mutation.mutate(payload);
+    }
+  };
+
+  const hasChanges = integration.fields.some(
+    (f) => values[f.key] !== undefined && values[f.key] !== '',
+  );
+
+  return (
+    <div>
+      <div
+        className="flex items-center gap-3 py-[13px] cursor-pointer select-none"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="w-[38px] h-[38px] rounded-[11px] bg-secondary grid place-items-center text-[16px]">
+          {integration.icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="block text-[13.5px] font-bold">{integration.name}</span>
+          <span className="text-[11.5px] text-muted-foreground">
+            {integration.description}
+          </span>
+        </div>
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : hasAnyConfigured ? (
+          <span className="pill-status pill-published">
+            <span className="pill-dot" />
+            Подключено
+          </span>
+        ) : (
+          <span className="pill-status pill-draft">
+            <span className="pill-dot" />
+            Не настроено
+          </span>
+        )}
+        <ChevronDown
+          className={`h-4 w-4 text-muted-foreground transition-transform ${
+            expanded ? 'rotate-180' : ''
+          }`}
+        />
+      </div>
+
+      {expanded && (
+        <div className="pb-3 pl-[50px] flex flex-col gap-2.5">
+          {integration.fields.map((field) => {
+            const existing = data?.[field.key];
+            const isVisible = visibleFields[field.key] ?? false;
+            return (
+              <div key={field.key}>
+                <label className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-1.5 block">
+                  {field.label}
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+                    <input
+                      type={isVisible ? 'text' : 'password'}
+                      placeholder={existing?.configured ? existing.value : 'Не задан'}
+                      value={values[field.key] ?? ''}
+                      onChange={(e) =>
+                        setValues((v) => ({ ...v, [field.key]: e.target.value }))
+                      }
+                      className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
+                    />
+                    <button
+                      type="button"
+                      className="px-2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setVisibleFields((v) => ({ ...v, [field.key]: !isVisible }));
+                      }}
+                    >
+                      {isVisible ? (
+                        <EyeOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Eye className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges || mutation.isPending}
+              className="px-4 py-1.5 rounded-[11px] bg-primary text-primary-foreground text-[13px] font-bold disabled:opacity-40 transition-opacity flex items-center gap-1.5"
+            >
+              {mutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : saved ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : null}
+              {saved ? 'Сохранено' : 'Сохранить'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { data: status, isLoading } = useQuery<IntegrationStatus>({
-    queryKey: ['settings-status'],
+  const { data, isLoading } = useQuery<IntegrationsData>({
+    queryKey: ['integrations'],
     queryFn: () => api.get('/settings/integrations'),
     retry: false,
   });
@@ -68,45 +229,27 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2.5 mb-3.5">
             <span className="font-bold text-[15px]">Интеграции</span>
           </div>
-          {INTEGRATIONS.map((int, i) => {
-            const connected = status?.[int.key] ?? false;
-            return (
-              <div
-                key={int.key}
-                className={`flex items-center gap-3 py-[13px] ${i > 0 ? 'border-t border-border' : ''}`}
-              >
-                <div className="w-[38px] h-[38px] rounded-[11px] bg-secondary grid place-items-center text-[16px]">
-                  {int.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="block text-[13.5px] font-bold">{int.name}</span>
-                  <span className="text-[11.5px] text-muted-foreground">{int.description}</span>
-                </div>
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : connected ? (
-                  <span className="pill-status pill-published">
-                    <span className="pill-dot" />
-                    Подключено
-                  </span>
-                ) : (
-                  <span className="pill-status pill-draft">
-                    <span className="pill-dot" />
-                    Не настроено
-                  </span>
-                )}
-              </div>
-            );
-          })}
-          <div
-            className={`flex items-center gap-3 py-[13px] border-t border-border`}
-          >
+          {INTEGRATIONS.map((int, i) => (
+            <div
+              key={int.key}
+              className={i > 0 ? 'border-t border-border' : ''}
+            >
+              <IntegrationCard
+                integration={int}
+                data={data}
+                isLoading={isLoading}
+              />
+            </div>
+          ))}
+          <div className="flex items-center gap-3 py-[13px] border-t border-border">
             <div className="w-[38px] h-[38px] rounded-[11px] bg-secondary grid place-items-center text-[16px]">
               ▢
             </div>
             <div className="flex-1 min-w-0">
               <span className="block text-[13.5px] font-bold">Хранилище медиа</span>
-              <span className="text-[11.5px] text-muted-foreground">Локальное (uploads/)</span>
+              <span className="text-[11.5px] text-muted-foreground">
+                Локальное (uploads/)
+              </span>
             </div>
             <span className="pill-status pill-published">
               <span className="pill-dot" />
@@ -119,10 +262,15 @@ export default function SettingsPage() {
         <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
           <div className="flex items-center gap-2.5 mb-3.5">
             <span className="font-bold text-[15px]">Бюджет и расходы</span>
-            <span className="ml-auto text-[12.5px] font-semibold text-muted-foreground">$0 / $300</span>
+            <span className="ml-auto text-[12.5px] font-semibold text-muted-foreground">
+              $0 / $300
+            </span>
           </div>
           <div className="h-[10px] rounded-full bg-secondary overflow-hidden mb-3.5">
-            <div className="h-full rounded-full bg-primary" style={{ width: '0%' }} />
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: '0%' }}
+            />
           </div>
           {[
             { name: 'Postproxy', pct: '0%', amt: '$0' },
@@ -131,16 +279,25 @@ export default function SettingsPage() {
             { name: 'EnsembleData', pct: '0%', amt: '$0' },
           ].map((item) => (
             <div key={item.name} className="flex items-center gap-3 py-2.5">
-              <span className="w-[150px] shrink-0 text-[13px] font-semibold">{item.name}</span>
+              <span className="w-[150px] shrink-0 text-[13px] font-semibold">
+                {item.name}
+              </span>
               <div className="flex-1 h-[10px] rounded-full bg-secondary overflow-hidden">
-                <div className="h-full rounded-full bg-primary" style={{ width: item.pct }} />
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: item.pct }}
+                />
               </div>
-              <span className="w-[60px] text-right text-[13px] font-bold">{item.amt}</span>
+              <span className="w-[60px] text-right text-[13px] font-bold">
+                {item.amt}
+              </span>
             </div>
           ))}
           <div className="flex items-center gap-2.5 mt-3.5 pt-3.5 border-t border-border">
             <Toggle on={budgetAlert} onToggle={() => setBudgetAlert(!budgetAlert)} />
-            <span className="text-[13px] font-semibold">Алерт при 90% и мягкая остановка генерации</span>
+            <span className="text-[13px] font-semibold">
+              Алерт при 90% и мягкая остановка генерации
+            </span>
           </div>
         </div>
 
@@ -149,21 +306,27 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2.5 mb-3.5">
             <span className="font-bold text-[15px]">Профиль</span>
           </div>
-          <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">Имя</div>
+          <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
+            Имя
+          </div>
           <div className="border border-border rounded-[11px] mb-3 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
             <input
               defaultValue="Пользователь"
               className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
             />
           </div>
-          <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">Язык</div>
+          <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
+            Язык
+          </div>
           <div className="border border-border rounded-[11px] mb-3">
             <select className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none">
               <option>Русский</option>
               <option>English</option>
             </select>
           </div>
-          <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">Тема</div>
+          <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
+            Тема
+          </div>
           <div className="inline-flex bg-secondary rounded-xl p-[3px]">
             <button
               className={`border-0 bg-transparent font-bold text-[12.5px] px-3.5 py-2 rounded-[9px] transition-colors ${
@@ -194,10 +357,26 @@ export default function SettingsPage() {
             <span className="font-bold text-[15px]">Уведомления</span>
           </div>
           {[
-            { label: 'Ошибки публикаций', on: notifErrors, toggle: () => setNotifErrors(!notifErrors) },
-            { label: 'Истечение токенов аккаунтов', on: notifTokens, toggle: () => setNotifTokens(!notifTokens) },
-            { label: 'Готовые AI‑генерации', on: notifAI, toggle: () => setNotifAI(!notifAI) },
-            { label: 'Сработавшие воронки', on: notifFunnels, toggle: () => setNotifFunnels(!notifFunnels) },
+            {
+              label: 'Ошибки публикаций',
+              on: notifErrors,
+              toggle: () => setNotifErrors(!notifErrors),
+            },
+            {
+              label: 'Истечение токенов аккаунтов',
+              on: notifTokens,
+              toggle: () => setNotifTokens(!notifTokens),
+            },
+            {
+              label: 'Готовые AI‑генерации',
+              on: notifAI,
+              toggle: () => setNotifAI(!notifAI),
+            },
+            {
+              label: 'Сработавшие воронки',
+              on: notifFunnels,
+              toggle: () => setNotifFunnels(!notifFunnels),
+            },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-2.5 py-2">
               <Toggle on={item.on} onToggle={item.toggle} />

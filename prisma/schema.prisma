@@ -246,3 +246,11 @@ model WebhookEvent {
   @@index([source, type, createdAt])
   @@map("webhook_events")
 }
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
