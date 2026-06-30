@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ChevronDown, Eye, EyeOff, Check } from 'lucide-react';
+import { Loader2, ChevronDown, Eye, EyeOff, Check, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
+import { useAppStore } from '@/lib/store';
 
 interface IntegrationValue {
   configured: boolean;
@@ -286,11 +287,50 @@ export default function SettingsPage() {
     queryClient.setQueryData(['integrations-verify'], newVerify);
   };
 
-  const [notifErrors, setNotifErrors] = useState(true);
-  const [notifTokens, setNotifTokens] = useState(true);
-  const [notifAI, setNotifAI] = useState(true);
-  const [notifFunnels, setNotifFunnels] = useState(false);
-  const [budgetAlert, setBudgetAlert] = useState(true);
+  const user = useAppStore((s) => s.user);
+  const setUser = useAppStore((s) => s.setUser);
+  const [profileName, setProfileName] = useState('');
+  const [profileDirty, setProfileDirty] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  useState(() => {
+    if (user?.name) setProfileName(user.name);
+  });
+
+  const handleProfileSave = async () => {
+    if (!profileDirty || profileSaving) return;
+    setProfileSaving(true);
+    try {
+      const updated = await api.patch<any>('/auth/profile', { name: profileName });
+      setUser(updated);
+      setProfileDirty(false);
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    } catch (e) {
+      console.error('Profile save failed:', e);
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  type PrefsData = Record<string, boolean>;
+  const { data: prefs } = useQuery<PrefsData>({
+    queryKey: ['preferences'],
+    queryFn: () => api.get('/settings/preferences'),
+    retry: false,
+  });
+
+  const togglePref = async (key: string) => {
+    const current = prefs?.[key] ?? false;
+    const newVal = !current;
+    queryClient.setQueryData<PrefsData>(['preferences'], (old) => ({ ...old, [key]: newVal }));
+    try {
+      await api.put('/settings/preferences', { [key]: newVal });
+    } catch {
+      queryClient.setQueryData<PrefsData>(['preferences'], (old) => ({ ...old, [key]: current }));
+    }
+  };
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -364,7 +404,7 @@ export default function SettingsPage() {
             </div>
           ))}
           <div className="flex items-center gap-2.5 mt-3.5 pt-3.5 border-t border-border">
-            <Toggle on={budgetAlert} onToggle={() => setBudgetAlert(!budgetAlert)} />
+            <Toggle on={prefs?.PREF_BUDGET_ALERT ?? true} onToggle={() => togglePref('PREF_BUDGET_ALERT')} />
             <span className="text-[13px] font-semibold">
               Алерт при 90% и мягкая остановка генерации
             </span>
@@ -379,11 +419,27 @@ export default function SettingsPage() {
           <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
             Имя
           </div>
-          <div className="border border-border rounded-[11px] mb-3 focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
-            <input
-              defaultValue="Пользователь"
-              className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
-            />
+          <div className="flex gap-2 mb-3">
+            <div className="flex-1 border border-border rounded-[11px] focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+              <input
+                value={profileName}
+                onChange={(e) => { setProfileName(e.target.value); setProfileDirty(true); }}
+                className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
+              />
+            </div>
+            <button
+              onClick={handleProfileSave}
+              disabled={!profileDirty || profileSaving}
+              className="px-3 py-1.5 rounded-[11px] bg-primary text-primary-foreground text-[13px] font-bold disabled:opacity-40 transition-opacity flex items-center gap-1.5"
+            >
+              {profileSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : profileSaved ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+            </button>
           </div>
           <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
             Язык
@@ -427,29 +483,13 @@ export default function SettingsPage() {
             <span className="font-bold text-[15px]">Уведомления</span>
           </div>
           {[
-            {
-              label: 'Ошибки публикаций',
-              on: notifErrors,
-              toggle: () => setNotifErrors(!notifErrors),
-            },
-            {
-              label: 'Истечение токенов аккаунтов',
-              on: notifTokens,
-              toggle: () => setNotifTokens(!notifTokens),
-            },
-            {
-              label: 'Готовые AI‑генерации',
-              on: notifAI,
-              toggle: () => setNotifAI(!notifAI),
-            },
-            {
-              label: 'Сработавшие воронки',
-              on: notifFunnels,
-              toggle: () => setNotifFunnels(!notifFunnels),
-            },
+            { key: 'PREF_NOTIF_ERRORS', label: 'Ошибки публикаций', def: true },
+            { key: 'PREF_NOTIF_TOKENS', label: 'Истечение токенов аккаунтов', def: true },
+            { key: 'PREF_NOTIF_AI', label: 'Готовые AI‑генерации', def: true },
+            { key: 'PREF_NOTIF_FUNNELS', label: 'Сработавшие воронки', def: false },
           ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2.5 py-2">
-              <Toggle on={item.on} onToggle={item.toggle} />
+            <div key={item.key} className="flex items-center gap-2.5 py-2">
+              <Toggle on={prefs?.[item.key] ?? item.def} onToggle={() => togglePref(item.key)} />
               <span className="text-[13px]">{item.label}</span>
             </div>
           ))}

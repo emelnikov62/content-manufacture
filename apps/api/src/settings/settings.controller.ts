@@ -27,4 +27,15 @@ export class SettingsController {
   updateIntegrations(@Body() body: Record<string, string>) {
     return this.settingsService.updateIntegrations(body);
   }
+
+  @Get('preferences')
+  getPreferences() {
+    return this.settingsService.getPreferences();
+  }
+
+  @Put('preferences')
+  @HttpCode(204)
+  updatePreferences(@Body() body: Record<string, boolean>) {
+    return this.settingsService.updatePreferences(body);
+  }
 }

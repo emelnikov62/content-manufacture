@@ -13,6 +13,22 @@ const INTEGRATION_KEYS = [
   'S3_BUCKET',
 ] as const;
 
+const PREFERENCE_KEYS = [
+  'PREF_NOTIF_ERRORS',
+  'PREF_NOTIF_TOKENS',
+  'PREF_NOTIF_AI',
+  'PREF_NOTIF_FUNNELS',
+  'PREF_BUDGET_ALERT',
+] as const;
+
+const PREFERENCE_DEFAULTS: Record<string, boolean> = {
+  PREF_NOTIF_ERRORS: true,
+  PREF_NOTIF_TOKENS: true,
+  PREF_NOTIF_AI: true,
+  PREF_NOTIF_FUNNELS: false,
+  PREF_BUDGET_ALERT: true,
+};
+
 type IntegrationKey = (typeof INTEGRATION_KEYS)[number];
 
 type IntegrationStatus = 'connected' | 'error' | 'not_configured';
@@ -85,6 +101,32 @@ export class SettingsService {
       );
 
     await this.prisma.$transaction(ops);
+  }
+
+  async getPreferences(): Promise<Record<string, boolean>> {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { in: [...PREFERENCE_KEYS] } },
+    });
+    const map = new Map(rows.map((r) => [r.key, r.value]));
+    const result: Record<string, boolean> = {};
+    for (const key of PREFERENCE_KEYS) {
+      const val = map.get(key);
+      result[key] = val !== undefined ? val === 'true' : PREFERENCE_DEFAULTS[key];
+    }
+    return result;
+  }
+
+  async updatePreferences(data: Record<string, boolean>) {
+    const ops = Object.entries(data)
+      .filter(([key]) => (PREFERENCE_KEYS as readonly string[]).includes(key))
+      .map(([key, value]) =>
+        this.prisma.setting.upsert({
+          where: { key },
+          create: { key, value: String(value) },
+          update: { value: String(value) },
+        }),
+      );
+    if (ops.length > 0) await this.prisma.$transaction(ops);
   }
 
   async revealKey(key: string): Promise<{ value: string }> {

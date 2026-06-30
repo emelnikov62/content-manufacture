@@ -25,6 +25,7 @@ interface AppState {
   user: UserProfile | null;
   setTokens: (access: string, refresh: string) => void;
   setAuth: (access: string, refresh: string, user: UserProfile) => void;
+  setUser: (user: UserProfile) => void;
   clearTokens: () => void;
 }
 
@@ -46,6 +47,7 @@ export const useAppStore = create<AppState>()(
         set({ accessToken: access, refreshToken: refresh }),
       setAuth: (access, refresh, user) =>
         set({ accessToken: access, refreshToken: refresh, user }),
+      setUser: (user) => set({ user }),
       clearTokens: () =>
         set({ accessToken: null, refreshToken: null, user: null, currentBrandId: null }),
     }),
