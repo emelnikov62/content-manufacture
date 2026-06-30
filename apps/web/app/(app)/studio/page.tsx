@@ -512,7 +512,7 @@ export default function StudioPage() {
                     + Загрузить файл
                   </button>
                   <button
-                    onClick={handleOpenMediaPicker}
+                    onClick={() => handleOpenMediaPicker()}
                     className="flex-1 text-[12px] font-semibold py-2 rounded-lg border border-dashed border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                   >
                     Из медиатеки
