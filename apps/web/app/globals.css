@@ -282,6 +282,15 @@
   box-shadow: var(--shadow);
 }
 
-button, [role="button"], a, select, input[type="checkbox"], input[type="radio"], label[for] {
-  cursor: pointer;
+button,
+[role="button"],
+a,
+select,
+summary,
+input[type="checkbox"],
+input[type="radio"],
+label[for],
+[onclick],
+.cursor-pointer {
+  cursor: pointer !important;
 }
