@@ -92,6 +92,7 @@ model Brand {
   posts       Post[]
   auditLogs   AuditLog[]
   generations Generation[]
+  personas    Persona[]
 
   @@map("brands")
 }
@@ -274,6 +275,7 @@ model Generation {
   type      String           @default("text")
   prompt    String
   params    Json?
+  metadata  Json?
   result    String?
   status    GenerationStatus @default(PENDING)
   error     String?
@@ -288,4 +290,19 @@ model Generation {
   @@index([brandId, createdAt])
   @@index([userId, createdAt])
   @@map("generations")
+}
+
+model Persona {
+  id          String   @id @default(cuid())
+  brandId     String
+  sunoId      String
+  name        String
+  description String?
+  style       String?
+  createdAt   DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@map("personas")
 }

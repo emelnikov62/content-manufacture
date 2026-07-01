@@ -12,11 +12,21 @@ const TABS = [
   { key: 'audio', label: '🎵 Аудио' },
 ];
 
+const MUSIC_STYLES = [
+  'Pop', 'Rock', 'Jazz', 'Classical', 'Electronic', 'Hip-Hop', 'R&B',
+  'Country', 'Folk', 'Blues', 'Reggae', 'Metal', 'Punk', 'Lo-fi',
+  'Ambient', 'Funk', 'Soul', 'Latin', 'Indie', 'K-pop', 'Disco',
+  'House', 'Techno', 'Trap', 'Dubstep', 'Drum & Bass', 'Chillout',
+  'Acoustic', 'Cinematic', 'Orchestral', 'Gospel', 'Ska', 'Grunge',
+  'Synthwave', 'Bossa Nova', 'Afrobeat',
+].map((s) => ({ value: s, label: s }));
+
 interface ParamDef {
   key: string;
   label: string;
-  type: 'select' | 'toggle';
+  type: 'select' | 'multiselect' | 'toggle' | 'text';
   options?: { value: string; label: string }[];
+  placeholder?: string;
   default: string | boolean;
 }
 
@@ -71,8 +81,16 @@ const MODELS: Record<string, ModelDef[]> = {
     ]},
   ],
   audio: [
-    { id: 'elevenlabs', icon: 'E', bg: 'var(--accent)', name: 'ElevenLabs', desc: 'реалистичная озвучка', price: '~$0.05', provider: 'ElevenLabs' },
-    { id: 'suno-v4', icon: 'S', bg: 'var(--feature)', name: 'Suno v4', desc: 'музыка и джинглы', price: '~$0.10', provider: 'Suno' },
+    { id: 'V5_5', icon: 'S', bg: 'var(--feature)', name: 'Suno 5.5', desc: 'музыка, джинглы, вокал', price: '~$0.10', provider: 'Suno', params: [
+      { key: 'title', label: 'Название трека', type: 'text', placeholder: 'Peaceful Piano Meditation', default: '' },
+      { key: 'style', label: 'Стиль', type: 'select', options: MUSIC_STYLES, default: '' },
+      { key: 'negativeTags', label: 'Исключить стили', type: 'multiselect', options: MUSIC_STYLES, default: '' },
+      { key: 'instrumental', label: 'Инструментал (без вокала)', type: 'toggle', default: false },
+      { key: 'vocalGender', label: 'Голос', type: 'select', options: [{ value: '', label: 'Авто' }, { value: 'm', label: 'Мужской' }, { value: 'f', label: 'Женский' }], default: '' },
+      { key: 'styleWeight', label: 'Вес стиля', type: 'select', options: [{ value: '0.25', label: '0.25' }, { value: '0.5', label: '0.5' }, { value: '0.65', label: '0.65' }, { value: '0.75', label: '0.75' }, { value: '1', label: '1.0' }], default: '0.65' },
+      { key: 'audioWeight', label: 'Вес аудио', type: 'select', options: [{ value: '0.25', label: '0.25' }, { value: '0.5', label: '0.5' }, { value: '0.65', label: '0.65' }, { value: '0.75', label: '0.75' }, { value: '1', label: '1.0' }], default: '0.65' },
+      { key: 'weirdnessConstraint', label: 'Экспериментальность', type: 'select', options: [{ value: '0.25', label: '0.25' }, { value: '0.5', label: '0.5' }, { value: '0.65', label: '0.65' }, { value: '0.75', label: '0.75' }, { value: '1', label: '1.0' }], default: '0.65' },
+    ]},
   ],
 };
 
@@ -109,6 +127,9 @@ export default function StudioPage() {
   const [loadingGenerations, setLoadingGenerations] = useState(false);
   const [imageInputs, setImageInputs] = useState<{ url: string; name: string }[]>([]);
   const [klingElements, setKlingElements] = useState<KlingElement[]>([]);
+  const [personas, setPersonas] = useState<{ id: string; sunoId: string; name: string; style?: string }[]>([]);
+  const [showPersonaModal, setShowPersonaModal] = useState<{ generationId: string; audioIndex: number } | null>(null);
+  const [personaForm, setPersonaForm] = useState({ name: '', description: '', style: '', vocalStart: 0, vocalEnd: 30 });
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [mediaPickerTarget, setMediaPickerTarget] = useState<{ type: 'imageInput' } | { type: 'element'; idx: number }>({ type: 'imageInput' });
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
@@ -145,7 +166,7 @@ export default function StudioPage() {
             type: 'success',
             title: `${typeLabel} готов`,
             message: `${gen.modelName}: ${gen.prompt.length > 80 ? gen.prompt.slice(0, 80) + '…' : gen.prompt}`,
-            generationId: (gen.type === 'image' || gen.type === 'video') ? gen.id : undefined,
+            generationId: (gen.type === 'image' || gen.type === 'video' || gen.type === 'audio') ? gen.id : undefined,
           });
         }
         if (prevIds.has(gen.id) && gen.status === 'ERROR') {
@@ -168,12 +189,21 @@ export default function StudioPage() {
     }
   }, [currentBrandId, addNotification]);
 
+  const fetchPersonas = useCallback(async () => {
+    if (!currentBrandId) return;
+    try {
+      const data = await api.get<any[]>(`/generations/personas/list?brandId=${currentBrandId}`);
+      setPersonas(data);
+    } catch { /* silent */ }
+  }, [currentBrandId]);
+
   useEffect(() => {
     if (currentBrandId) {
       setLoadingGenerations(true);
       fetchGenerations().finally(() => setLoadingGenerations(false));
+      fetchPersonas();
     }
-  }, [currentBrandId, fetchGenerations]);
+  }, [currentBrandId, fetchGenerations, fetchPersonas]);
 
   useEffect(() => {
     if (allProcessing.length === 0) return;
@@ -356,6 +386,22 @@ export default function StudioPage() {
       URL.revokeObjectURL(a.href);
     } catch {
       window.open(url, '_blank');
+    }
+  };
+
+  const handleCreatePersona = async () => {
+    if (!showPersonaModal || !personaForm.name) return;
+    try {
+      await api.post(`/generations/${showPersonaModal.generationId}/persona`, {
+        audioIndex: showPersonaModal.audioIndex,
+        ...personaForm,
+      });
+      toast.success('Персона создана');
+      setShowPersonaModal(null);
+      setPersonaForm({ name: '', description: '', style: '', vocalStart: 0, vocalEnd: 30 });
+      fetchPersonas();
+    } catch (e: any) {
+      toast.error(e.message || 'Ошибка создания персоны');
     }
   };
 
@@ -692,6 +738,42 @@ export default function StudioPage() {
                       </button>
                       <span className="text-[13px] font-semibold">{p.label}</span>
                     </div>
+                  ) : p.type === 'text' ? (
+                    <div key={p.key} className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-semibold text-muted-foreground">{p.label}</span>
+                      <input
+                        value={String(getParamValue(p.key, p.default) || '')}
+                        onChange={(e) => setParamValue(p.key, e.target.value)}
+                        placeholder={p.placeholder || ''}
+                        className="text-[12.5px] bg-transparent border border-border rounded-lg px-2.5 py-1.5 outline-none focus:border-ring"
+                      />
+                    </div>
+                  ) : p.type === 'multiselect' ? (
+                    <div key={p.key} className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-semibold text-muted-foreground">{p.label}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {p.options?.map((o) => {
+                          const selected = String(getParamValue(p.key, p.default) || '').split(',').filter(Boolean);
+                          const isOn = selected.includes(o.value);
+                          return (
+                            <button
+                              key={o.value}
+                              className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                                isOn
+                                  ? 'border-destructive bg-destructive/10 text-destructive'
+                                  : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+                              }`}
+                              onClick={() => {
+                                const next = isOn ? selected.filter((v) => v !== o.value) : [...selected, o.value];
+                                setParamValue(p.key, next.join(','));
+                              }}
+                            >
+                              {o.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   ) : (
                     <div key={p.key} className="flex flex-col gap-1.5">
                       <span className="text-[11px] font-semibold text-muted-foreground">{p.label}</span>
@@ -713,6 +795,38 @@ export default function StudioPage() {
                     </div>
                   ),
                 )}
+              </div>
+            )}
+
+            {/* Persona selector for Suno */}
+            {tab === 'audio' && personas.length > 0 && (
+              <div className="flex flex-col gap-1.5 mt-2">
+                <span className="text-[11px] font-semibold text-muted-foreground">Персона</span>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                      !modelParams.personaId
+                        ? 'border-primary bg-primary/10 text-foreground'
+                        : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+                    }`}
+                    onClick={() => { const { personaId, personaModel, ...rest } = modelParams as any; setModelParams(rest); }}
+                  >
+                    Без персоны
+                  </button>
+                  {personas.map((p) => (
+                    <button
+                      key={p.id}
+                      className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                        modelParams.personaId === p.sunoId
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+                      }`}
+                      onClick={() => setModelParams((prev) => ({ ...prev, personaId: p.sunoId, personaModel: 'style_persona' }))}
+                    >
+                      {p.name}{p.style ? ` · ${p.style}` : ''}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -822,6 +936,57 @@ export default function StudioPage() {
                       </span>
                       <button
                         onClick={() => { const urls = item.result?.split('\n').filter(Boolean) || []; urls.forEach((u, i) => handleDownload(u, `${item.modelName}-${i}.mp4`)); }}
+                        title="Скачать"
+                        className="w-[26px] h-[26px] grid place-items-center rounded-lg border border-border bg-card hover:bg-secondary transition-colors"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      </button>
+                      <button
+                        onClick={() => handleRetry(item)}
+                        title="Редактировать промпт"
+                        className="w-[26px] h-[26px] grid place-items-center rounded-lg border border-border bg-card hover:bg-secondary transition-colors"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteError(item.id)}
+                        title="Удалить"
+                        className="w-[26px] h-[26px] grid place-items-center rounded-lg border border-border bg-card hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : tab === 'audio' ? (
+              <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
+                {completedItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="border border-border rounded-[14px] overflow-hidden bg-card shrink-0"
+                  >
+                    {item.result && item.result.split('\n').filter(Boolean).map((url, i) => (
+                      <div key={i} className="px-3.5 pt-3">
+                        <audio src={url} controls className="w-full" />
+                      </div>
+                    ))}
+                    <div className="p-2.5 flex items-center gap-2">
+                      <span className="text-[12px] font-bold px-2 py-0.5 rounded-md bg-secondary">
+                        {item.modelName}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground flex-1 truncate" title={item.prompt}>
+                        {item.prompt.length > 50 ? item.prompt.slice(0, 50) + '…' : item.prompt}
+                      </span>
+                      <button
+                        onClick={() => setShowPersonaModal({ generationId: item.id, audioIndex: 0 })}
+                        title="Создать персону"
+                        className="w-[26px] h-[26px] grid place-items-center rounded-lg border border-border bg-card hover:bg-primary/10 hover:border-primary/30 transition-colors"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                      </button>
+                      <button
+                        onClick={() => { const urls = item.result?.split('\n').filter(Boolean) || []; urls.forEach((u, i) => handleDownload(u, `${item.modelName}-${i}.mp3`)); }}
                         title="Скачать"
                         className="w-[26px] h-[26px] grid place-items-center rounded-lg border border-border bg-card hover:bg-secondary transition-colors"
                       >
@@ -1062,6 +1227,74 @@ export default function StudioPage() {
           </div>
         );
       })()}
+
+      {/* Persona creation modal */}
+      {showPersonaModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowPersonaModal(null)}>
+          <div className="bg-card border border-border rounded-[18px] shadow-lg w-[400px] p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="font-bold text-[15px]">Создать персону</span>
+              <button onClick={() => setShowPersonaModal(null)} className="ml-auto text-muted-foreground hover:text-foreground">✕</button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-muted-foreground">Название *</span>
+                <input
+                  value={personaForm.name}
+                  onChange={(e) => setPersonaForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Electronic Pop Singer"
+                  className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-muted-foreground">Описание</span>
+                <input
+                  value={personaForm.description}
+                  onChange={(e) => setPersonaForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Современный электронный поп-вокал"
+                  className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-muted-foreground">Стиль</span>
+                <input
+                  value={personaForm.style}
+                  onChange={(e) => setPersonaForm((f) => ({ ...f, style: e.target.value }))}
+                  placeholder="Electronic Pop"
+                  className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
+                />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1 flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground">Начало вокала (сек)</span>
+                  <input
+                    type="number"
+                    value={personaForm.vocalStart}
+                    onChange={(e) => setPersonaForm((f) => ({ ...f, vocalStart: Number(e.target.value) }))}
+                    className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
+                  />
+                </div>
+                <div className="flex-1 flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold text-muted-foreground">Конец вокала (сек)</span>
+                  <input
+                    type="number"
+                    value={personaForm.vocalEnd}
+                    onChange={(e) => setPersonaForm((f) => ({ ...f, vocalEnd: Number(e.target.value) }))}
+                    className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleCreatePersona}
+                disabled={!personaForm.name}
+                className="w-full bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50 mt-1"
+              >
+                Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

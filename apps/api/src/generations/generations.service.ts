@@ -58,7 +58,7 @@ export class GenerationsService {
       where: {
         brandId,
         status: 'COMPLETED',
-        type: type ? type : { in: ['image', 'video'] },
+        type: type ? type : { in: ['image', 'video', 'audio'] },
         result: { not: null },
       },
       orderBy: { createdAt: 'desc' },
@@ -107,6 +107,16 @@ export class GenerationsService {
         const result = await this.callMediaApi(apiKey, dto.model, dto.type, dto.prompt, id, dto.params);
         const isVideo = dto.type === 'video';
         const s3Urls = await this.uploadResultsToS3(result.urls, id, isVideo ? 'mp4' : undefined);
+        await this.prisma.generation.update({
+          where: { id },
+          data: {
+            status: 'COMPLETED',
+            result: s3Urls.join('\n'),
+          },
+        });
+      } else if (dto.type === 'audio') {
+        const result = await this.callSunoApi(apiKey, dto.model, dto.prompt, id, dto.params);
+        const s3Urls = await this.uploadResultsToS3(result.urls, id, 'mp3');
         await this.prisma.generation.update({
           where: { id },
           data: {
@@ -411,6 +421,189 @@ export class GenerationsService {
     }
 
     return url;
+  }
+
+  // --- Suno audio generation ---
+
+  private async callSunoApi(
+    apiKey: string,
+    model: string,
+    prompt: string,
+    generationId: string,
+    params?: Record<string, any>,
+  ): Promise<{ urls: string[] }> {
+    const p = params || {};
+    const body: Record<string, any> = {
+      prompt,
+      model,
+      customMode: p.customMode ?? false,
+      instrumental: p.instrumental ?? false,
+    };
+    if (p.title) body.title = String(p.title).slice(0, 80);
+    if (p.style) body.style = String(p.style).slice(0, 1000);
+    if (p.negativeTags) body.negativeTags = String(p.negativeTags);
+    if (p.vocalGender) body.vocalGender = p.vocalGender;
+    if (p.styleWeight !== undefined && p.styleWeight !== '') body.styleWeight = Number(p.styleWeight);
+    if (p.audioWeight !== undefined && p.audioWeight !== '') body.audioWeight = Number(p.audioWeight);
+    if (p.weirdnessConstraint !== undefined && p.weirdnessConstraint !== '') body.weirdnessConstraint = Number(p.weirdnessConstraint);
+    if (p.personaId) body.personaId = p.personaId;
+    if (p.personaModel) body.personaModel = p.personaModel;
+
+    this.logger.log(`Suno createTask: ${JSON.stringify(body)}`);
+
+    const createRes = await fetch('https://api.kie.ai/api/v1/generate', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15000),
+    });
+
+    const createBody = await createRes.json();
+    if (createBody.code !== 200) {
+      throw new Error(createBody.msg || `Suno error: ${createBody.code}`);
+    }
+
+    const taskId = createBody.data?.taskId;
+    if (!taskId) throw new Error('Suno: не получен taskId');
+
+    return this.pollSunoResult(apiKey, taskId, generationId);
+  }
+
+  private async pollSunoResult(
+    apiKey: string,
+    taskId: string,
+    generationId: string,
+  ): Promise<{ urls: string[] }> {
+    const maxAttempts = 120;
+    const interval = 5000;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, interval));
+
+      const gen = await this.prisma.generation.findUnique({
+        where: { id: generationId },
+        select: { status: true },
+      });
+      if (gen?.status === 'ERROR') throw new Error('Отменено пользователем');
+
+      const res = await fetch(
+        `https://api.kie.ai/api/v1/generate/record-info?taskId=${taskId}`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+
+      const body = await res.json();
+      const data = body.data;
+      if (!data) continue;
+
+      if (data.status === 'SUCCESS') {
+        const sunoData = data.response?.sunoData;
+        if (!Array.isArray(sunoData) || sunoData.length === 0) {
+          throw new Error('Suno: нет данных в ответе');
+        }
+        const urls = sunoData.map((s: any) => s.audioUrl).filter(Boolean);
+        if (urls.length === 0) throw new Error('Suno: нет audioUrl');
+        await this.prisma.generation.update({
+          where: { id: generationId },
+          data: {
+            metadata: {
+              sunoTaskId: taskId,
+              sunoData: sunoData.map((s: any) => ({
+                audioId: s.id,
+                title: s.title,
+                tags: s.tags,
+                duration: s.duration,
+              })),
+            },
+          },
+        });
+        return { urls };
+      }
+
+      if (data.status === 'FAILED' || data.status === 'ERROR') {
+        throw new Error(data.failMsg || 'Suno: генерация не удалась');
+      }
+    }
+
+    throw new Error('Suno: таймаут — генерация не завершилась за 10 минут');
+  }
+
+  // --- Personas ---
+
+  async createPersona(
+    generationId: string,
+    audioIndex: number,
+    name: string,
+    description: string,
+    style: string,
+    vocalStart: number,
+    vocalEnd: number,
+  ) {
+    const gen = await this.prisma.generation.findUnique({ where: { id: generationId } });
+    if (!gen || gen.type !== 'audio' || gen.status !== 'COMPLETED') {
+      throw new Error('Генерация не найдена или не завершена');
+    }
+
+    const meta = gen.metadata as any;
+    if (!meta?.sunoTaskId || !meta?.sunoData?.[audioIndex]) {
+      throw new Error('Нет Suno metadata для этой генерации');
+    }
+
+    const apiKey = await this.getKieApiKey();
+    const taskId = meta.sunoTaskId;
+    const audioId = meta.sunoData[audioIndex].audioId;
+
+    const res = await fetch('https://api.kie.ai/api/v1/generate/generate-persona', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        taskId,
+        audioId,
+        name,
+        description,
+        vocalStart,
+        vocalEnd,
+        style,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    const body = await res.json();
+    if (body.code !== 200) {
+      throw new Error(body.msg || `Persona error: ${body.code}`);
+    }
+
+    const personaId = body.data?.personaId;
+    if (!personaId) throw new Error('Не получен personaId');
+
+    return this.prisma.persona.create({
+      data: {
+        brandId: gen.brandId,
+        sunoId: personaId,
+        name: body.data.name || name,
+        description: body.data.description || description,
+        style,
+      },
+    });
+  }
+
+  async findPersonas(brandId: string) {
+    return this.prisma.persona.findMany({
+      where: { brandId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async deletePersona(id: string) {
+    await this.prisma.persona.delete({ where: { id } });
   }
 
   // --- Text generation ---

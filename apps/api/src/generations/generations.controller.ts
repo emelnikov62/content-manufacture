@@ -37,6 +37,34 @@ export class GenerationsController {
     return this.generationsService.findMedia(brandId, type);
   }
 
+  @Post(':id/persona')
+  createPersona(
+    @Param('id') id: string,
+    @Body() body: {
+      audioIndex: number;
+      name: string;
+      description: string;
+      style: string;
+      vocalStart: number;
+      vocalEnd: number;
+    },
+  ) {
+    return this.generationsService.createPersona(
+      id, body.audioIndex, body.name, body.description, body.style, body.vocalStart, body.vocalEnd,
+    );
+  }
+
+  @Get('personas/list')
+  findPersonas(@Query('brandId') brandId: string) {
+    return this.generationsService.findPersonas(brandId);
+  }
+
+  @Delete('personas/:id')
+  @HttpCode(204)
+  deletePersona(@Param('id') id: string) {
+    return this.generationsService.deletePersona(id);
+  }
+
   @Patch(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.generationsService.cancel(id);
