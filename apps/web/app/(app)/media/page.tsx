@@ -76,6 +76,7 @@ export default function MediaPage() {
       let url = `/generations/media?brandId=${currentBrandId}`;
       if (typeFilter === 'IMAGE') url += '&type=image';
       if (typeFilter === 'VIDEO') url += '&type=video';
+      if (typeFilter === 'AUDIO') url += '&type=audio';
       return api.get(url);
     },
     enabled: !!currentBrandId && sourceFilter !== 'UPLOADED',
@@ -85,7 +86,9 @@ export default function MediaPage() {
     const uploaded = sourceFilter === 'AI_GENERATED' ? [] : uploadedAssets;
     const generated = sourceFilter === 'UPLOADED' ? [] : generatedMedia.flatMap((g) => {
       const urls = g.result.split('\n').filter(Boolean);
-      const genType = g.type === 'video' ? 'VIDEO' : 'IMAGE';
+      const genType = g.type === 'video' ? 'VIDEO' : g.type === 'audio' ? 'AUDIO' : 'IMAGE';
+      const ext = g.type === 'video' ? 'mp4' : g.type === 'audio' ? 'mp3' : 'png';
+      const mime = g.type === 'video' ? 'video/mp4' : g.type === 'audio' ? 'audio/mpeg' : 'image/png';
       if (typeFilter !== 'all' && typeFilter !== genType) return [];
       return urls.map((url, i) => ({
         id: `gen-${g.id}-${i}`,
@@ -93,8 +96,8 @@ export default function MediaPage() {
         source: 'AI_GENERATED',
         url,
         thumbnailUrl: null,
-        filename: `${g.modelName}-${g.id.slice(-6)}-${i}.${g.type === 'video' ? 'mp4' : 'png'}`,
-        mimeType: g.type === 'video' ? 'video/mp4' : 'image/png',
+        filename: `${g.modelName}-${g.id.slice(-6)}-${i}.${ext}`,
+        mimeType: mime,
         sizeBytes: 0,
         tags: ['ai-generated'],
         createdAt: g.createdAt,
@@ -297,8 +300,15 @@ export default function MediaPage() {
                       onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <TypeIcon className="h-8 w-8 text-muted-foreground" />
+                    <div className="flex flex-col h-full w-full items-center justify-center gap-3 p-3">
+                      <Music className="h-8 w-8 text-muted-foreground" />
+                      <audio
+                        src={asset.url}
+                        controls
+                        preload="metadata"
+                        className="w-full h-8"
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     </div>
                   )}
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -359,8 +369,9 @@ export default function MediaPage() {
             ) : selected.type === 'VIDEO' ? (
               <video src={selected.url} controls className="w-full max-h-[45vh] bg-secondary" />
             ) : (
-              <div className="flex h-40 items-center justify-center bg-secondary">
-                <Music className="h-12 w-12 text-muted-foreground" />
+              <div className="flex flex-col h-40 items-center justify-center bg-secondary gap-3 px-6">
+                <Music className="h-10 w-10 text-muted-foreground" />
+                <audio src={selected.url} controls className="w-full" />
               </div>
             )}
 
