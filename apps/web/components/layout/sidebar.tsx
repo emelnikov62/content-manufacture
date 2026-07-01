@@ -15,6 +15,7 @@ import {
   Sparkles,
   GitFork,
   MessageSquare,
+  Link2,
   Menu,
   X,
 } from 'lucide-react';
@@ -38,6 +39,7 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; ba
   { href: '/funnels', label: 'Воронки', icon: GitFork },
   { href: '/analytics', label: 'Аналитика', icon: BarChart3 },
   { href: '/messages', label: 'Сообщения', icon: MessageSquare, badge: '12' },
+  { href: '/accounts', label: 'Аккаунты', icon: Link2 },
   { href: '/team', label: 'Команда', icon: Users },
   { href: '/settings', label: 'Настройки', icon: Settings },
 ];

@@ -23,6 +23,37 @@ export class AccountsController {
     return this.accountsService.findAllByBrand(brandId);
   }
 
+  @Get('postproxy/profiles')
+  getProfiles() {
+    return this.accountsService.getProfiles();
+  }
+
+  @Get('postproxy/groups')
+  getProfileGroups() {
+    return this.accountsService.getProfileGroups();
+  }
+
+  @Post('connect/telegram')
+  connectTelegram(
+    @Body() body: { brandId: string; botToken: string; profileGroupId?: string },
+  ) {
+    return this.accountsService.connectTelegram(
+      body.brandId,
+      body.botToken,
+      body.profileGroupId,
+    );
+  }
+
+  @Get(':id/placements')
+  getPlacements(@Param('id') id: string) {
+    return this.accountsService.getPlacements(id);
+  }
+
+  @Get(':id/stats')
+  getStats(@Param('id') id: string, @Query('placementId') placementId?: string) {
+    return this.accountsService.getProfileStats(id, placementId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.accountsService.findById(id);

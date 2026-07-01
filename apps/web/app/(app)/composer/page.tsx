@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -8,6 +8,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   ImageIcon,
+  Video,
+  Music,
+  Upload,
+  Hash,
   X,
 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -25,7 +29,7 @@ const NETWORK_META: Record<
 > = {
   INSTAGRAM: { icon: '📷', label: 'Instagram', maxText: 2200, color: 'linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)', fields: ['firstComment', 'coverUrl'] },
   TIKTOK: { icon: '🎵', label: 'TikTok', maxText: 4000, color: '#111315', fields: [] },
-  TELEGRAM: { icon: '✈️', label: 'Telegram', maxText: 4096, color: '#2AABEE', fields: ['parseMode'] },
+  TELEGRAM: { icon: '✈️', label: 'Telegram', maxText: 4096, color: '#2AABEE', fields: ['chat_id', 'parse_mode'] },
   THREADS: { icon: '🧵', label: 'Threads', maxText: 500, color: '#111315', fields: [] },
   FACEBOOK: { icon: '📘', label: 'Facebook', maxText: 63206, color: '#1877F2', fields: ['firstComment'] },
   TWITTER: { icon: '𝕏', label: 'X', maxText: 280, color: '#111315', fields: [] },
@@ -38,6 +42,7 @@ export default function ComposerPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const currentBrandId = useAppStore((s) => s.currentBrandId);
+  const accessToken = useAppStore((s) => s.accessToken);
 
   const [body, setBody] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
@@ -46,6 +51,7 @@ export default function ComposerPage() {
   const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [networkParams, setNetworkParams] = useState<Record<string, Record<string, string>>>({});
+  const [placements, setPlacements] = useState<Record<string, { id: string; name: string }[]>>({});
 
   const { data: accounts = [] } = useQuery<Account[]>({
     queryKey: ['accounts', currentBrandId],
@@ -53,11 +59,32 @@ export default function ComposerPage() {
     enabled: !!currentBrandId,
   });
 
-  const { data: assets = [] } = useQuery<Asset[]>({
+  const { data: uploadedAssets = [] } = useQuery<Asset[]>({
     queryKey: ['assets', currentBrandId],
     queryFn: () => api.get(`/assets?brandId=${currentBrandId}`),
     enabled: !!currentBrandId && mediaPickerOpen,
   });
+
+  const { data: generatedMedia = [] } = useQuery<any[]>({
+    queryKey: ['gen-media-composer', currentBrandId],
+    queryFn: () => api.get(`/generations/media?brandId=${currentBrandId}`),
+    enabled: !!currentBrandId && mediaPickerOpen,
+  });
+
+  const assets: Asset[] = (() => {
+    const genAssets = generatedMedia.flatMap((g: any) => {
+      const urls = (g.result || '').split('\n').filter(Boolean);
+      const type = g.type === 'video' ? 'VIDEO' : g.type === 'audio' ? 'AUDIO' : 'IMAGE';
+      return urls.map((url: string, i: number) => ({
+        id: `gen-${g.id}-${i}`,
+        type,
+        url,
+        thumbnailUrl: null,
+        filename: `${g.modelName}-${g.id.slice(-6)}.${g.type === 'video' ? 'mp4' : g.type === 'audio' ? 'mp3' : 'png'}`,
+      }));
+    });
+    return [...uploadedAssets, ...genAssets];
+  })();
 
   const publishMutation = useMutation({
     mutationFn: (data: any) => api.post('/posts', data),
@@ -67,7 +94,29 @@ export default function ComposerPage() {
     },
   });
 
+  const loadPlacements = useCallback(async (accountId: string) => {
+    if (placements[accountId]) return;
+    try {
+      const res = await api.get<any[]>(`/accounts/${accountId}/placements`);
+      const list = (Array.isArray(res) ? res : []).map((p: any) => ({
+        id: p.id,
+        name: p.name || p.username || p.id,
+      }));
+      setPlacements((prev) => ({ ...prev, [accountId]: list }));
+      if (list.length === 1) {
+        setNetworkParams((prev) => ({
+          ...prev,
+          [accountId]: { ...(prev[accountId] || {}), chat_id: list[0].id },
+        }));
+      }
+    } catch {}
+  }, [placements]);
+
   function toggleAccount(id: string) {
+    const acc = accounts.find((a) => a.id === id);
+    if (acc?.network === 'TELEGRAM' && !selectedAccounts.includes(id)) {
+      loadPlacements(id);
+    }
     setSelectedAccounts((prev) =>
       prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
     );
@@ -121,6 +170,13 @@ export default function ComposerPage() {
   }
   if (selectedNetworks.includes('TIKTOK') && selectedAssets.length === 0) {
     validationErrors.push({ network: 'TIKTOK', message: 'TikTok требует видео' });
+  }
+  for (const accId of selectedAccounts) {
+    const acc = accounts.find((a) => a.id === accId);
+    if (acc?.network === 'TELEGRAM' && !networkParams[accId]?.chat_id) {
+      validationErrors.push({ network: 'TELEGRAM', message: 'Выберите канал для Telegram' });
+      break;
+    }
   }
 
   const previewNetwork = selectedNetworks[0];
@@ -235,6 +291,9 @@ export default function ComposerPage() {
               if (!acc) return null;
               const meta = NETWORK_META[acc.network];
               if (!meta) return null;
+              const isTelegram = acc.network === 'TELEGRAM';
+              const accPlacements = placements[accId] || [];
+              const selectedChatId = networkParams[accId]?.chat_id || '';
 
               return (
                 <div key={accId} className="border border-border rounded-xl p-3 mt-2.5">
@@ -245,52 +304,86 @@ export default function ComposerPage() {
                     >
                       {meta.icon}
                     </span>
-                    {meta.label}
-                    {meta.fields.length > 0 && (
-                      <span className="text-muted-foreground font-normal text-[12px]">
-                        · {meta.fields.includes('coverUrl') ? 'обложка Reel, ' : ''}
-                        {meta.fields.includes('firstComment') ? 'первый комментарий' : ''}
-                        {meta.fields.includes('parseMode') ? 'parse_mode' : ''}
-                      </span>
-                    )}
+                    {meta.label} · @{acc.handle}
                     <span className="ml-auto text-[11px] text-muted-foreground">
                       {body.length} / {meta.maxText}
                     </span>
                   </div>
-                  {meta.fields.length > 0 && (
-                    <div className="flex flex-col gap-2 mt-2.5">
-                      {meta.fields.includes('firstComment') && (
-                        <div className="border border-border rounded-[11px] focus-within:border-ring">
-                          <input
-                            placeholder="Первый комментарий"
-                            value={networkParams[accId]?.firstComment || ''}
-                            onChange={(e) => updateNetworkParam(accId, 'firstComment', e.target.value)}
-                            className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
-                          />
+                  <div className="flex flex-col gap-2 mt-2.5">
+                    {isTelegram && (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground">Канал / группа *</span>
+                        {accPlacements.length === 0 ? (
+                          <p className="text-[12px] text-muted-foreground">
+                            Нет каналов. Добавьте бота как администратора в канал.
+                          </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {accPlacements.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+                                  selectedChatId === p.id
+                                    ? 'border-[#2AABEE] bg-[#2AABEE]/10 text-foreground'
+                                    : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+                                }`}
+                                onClick={() => updateNetworkParam(accId, 'chat_id', p.id)}
+                              >
+                                <Hash className="h-3 w-3" />
+                                {p.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {meta.fields.includes('firstComment') && (
+                      <div className="border border-border rounded-[11px] focus-within:border-ring">
+                        <input
+                          placeholder="Первый комментарий"
+                          value={networkParams[accId]?.firstComment || ''}
+                          onChange={(e) => updateNetworkParam(accId, 'firstComment', e.target.value)}
+                          className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
+                        />
+                      </div>
+                    )}
+                    {meta.fields.includes('coverUrl') && (
+                      <div className="border border-border rounded-[11px] focus-within:border-ring">
+                        <input
+                          placeholder="URL обложки (Reels)"
+                          value={networkParams[accId]?.coverUrl || ''}
+                          onChange={(e) => updateNetworkParam(accId, 'coverUrl', e.target.value)}
+                          className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
+                        />
+                      </div>
+                    )}
+                    {isTelegram && (
+                      <div className="flex flex-col gap-1.5">
+                        <span className="text-[11px] font-semibold text-muted-foreground">Форматирование</span>
+                        <div className="flex gap-1.5">
+                          {[
+                            { value: '', label: 'Без форматирования' },
+                            { value: 'HTML', label: 'HTML' },
+                            { value: 'MarkdownV2', label: 'Markdown' },
+                          ].map((o) => (
+                            <button
+                              key={o.value}
+                              type="button"
+                              className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                                (networkParams[accId]?.parse_mode || '') === o.value
+                                  ? 'border-primary bg-primary/10 text-foreground'
+                                  : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+                              }`}
+                              onClick={() => updateNetworkParam(accId, 'parse_mode', o.value)}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
                         </div>
-                      )}
-                      {meta.fields.includes('coverUrl') && (
-                        <div className="border border-border rounded-[11px] focus-within:border-ring">
-                          <input
-                            placeholder="URL обложки (Reels)"
-                            value={networkParams[accId]?.coverUrl || ''}
-                            onChange={(e) => updateNetworkParam(accId, 'coverUrl', e.target.value)}
-                            className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
-                          />
-                        </div>
-                      )}
-                      {meta.fields.includes('parseMode') && (
-                        <div className="border border-border rounded-[11px] focus-within:border-ring">
-                          <input
-                            placeholder="parse_mode (HTML / MarkdownV2)"
-                            value={networkParams[accId]?.parseMode || ''}
-                            onChange={(e) => updateNetworkParam(accId, 'parseMode', e.target.value)}
-                            className="w-full border-0 rounded-[11px] px-3 py-2 text-[13.5px] bg-transparent outline-none"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -301,19 +394,41 @@ export default function ComposerPage() {
             <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
               Медиа
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap">
               {selectedAssets.map((asset) => (
                 <div
                   key={asset.id}
-                  className="relative w-[90px] h-[90px] rounded-[14px] overflow-hidden border border-border bg-secondary shrink-0"
+                  className="relative w-[120px] h-[120px] rounded-[14px] overflow-hidden border border-border bg-secondary shrink-0"
                 >
                   {asset.type === 'IMAGE' ? (
                     <img src={asset.url} alt={asset.filename} className="h-full w-full object-cover" />
+                  ) : asset.type === 'VIDEO' ? (
+                    <video
+                      src={asset.url}
+                      muted
+                      preload="metadata"
+                      className="h-full w-full object-cover"
+                      onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                      onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                    />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground text-[10px] p-1 text-center">
-                      {asset.filename}
+                    <div className="flex flex-col h-full items-center justify-center gap-1 p-1.5">
+                      <Music className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <span className="text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{asset.filename}</span>
+                      <audio
+                        src={asset.url}
+                        controls
+                        preload="metadata"
+                        className="w-full shrink-0"
+                        style={{ height: '24px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     </div>
                   )}
+                  <div className="absolute top-1 left-1">
+                    {asset.type === 'VIDEO' && <Video className="h-3.5 w-3.5 text-white drop-shadow" />}
+                    {asset.type === 'AUDIO' && <Music className="h-3.5 w-3.5 text-white drop-shadow" />}
+                  </div>
                   <button
                     className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center"
                     onClick={() => removeAsset(asset.id)}
@@ -323,11 +438,43 @@ export default function ComposerPage() {
                 </div>
               ))}
               <button
-                className="h-[90px] inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
+                className="h-[120px] inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
                 onClick={() => setMediaPickerOpen(true)}
               >
-                + Добавить из библиотеки
+                + Из библиотеки
               </button>
+              <button
+                className="h-[120px] inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
+                onClick={() => document.getElementById('composer-upload')?.click()}
+              >
+                <Upload className="h-4 w-4" />
+                Загрузить
+              </button>
+              <input
+                id="composer-upload"
+                type="file"
+                multiple
+                accept="image/*,video/*,audio/*"
+                className="hidden"
+                onChange={async (e) => {
+                  if (!e.target.files || !currentBrandId || !accessToken) return;
+                  for (const file of Array.from(e.target.files)) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('brandId', currentBrandId);
+                    try {
+                      const res = await fetch(
+                        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/assets/upload`,
+                        { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: formData },
+                      );
+                      const asset = await res.json();
+                      if (asset?.id) addAsset(asset);
+                    } catch {}
+                  }
+                  e.target.value = '';
+                  queryClient.invalidateQueries({ queryKey: ['assets'] });
+                }}
+              />
             </div>
             {selectedNetworks.includes('TIKTOK') && (
               <p className="text-[11.5px] text-warning mt-2.5">
@@ -350,8 +497,40 @@ export default function ComposerPage() {
                   <div className="w-[28px] h-[28px] rounded-full bg-gradient-to-br from-amber-400 to-amber-800" />
                   <span className="text-[12.5px] font-bold">@{previewAccount.handle}</span>
                 </div>
-                {selectedAssets.length > 0 && selectedAssets[0].type === 'IMAGE' ? (
-                  <img src={selectedAssets[0].url} alt="" className="w-full aspect-square object-cover" />
+                {selectedAssets.length > 0 ? (
+                  <div className={`grid gap-0.5 overflow-hidden ${
+                    selectedAssets.length === 1 ? 'grid-cols-1' :
+                    selectedAssets.length === 2 ? 'grid-cols-2' :
+                    selectedAssets.length === 3 ? 'grid-cols-3' :
+                    'grid-cols-2'
+                  }`}>
+                    {selectedAssets.map((asset, i) => (
+                      <div
+                        key={asset.id}
+                        className={`relative overflow-hidden ${
+                          selectedAssets.length === 1 ? 'aspect-video' :
+                          selectedAssets.length === 3 && i === 0 ? 'row-span-2 aspect-auto h-full' :
+                          'aspect-square'
+                        }`}
+                      >
+                        {asset.type === 'IMAGE' ? (
+                          <img src={asset.url} alt={asset.filename} className="h-full w-full object-cover" />
+                        ) : asset.type === 'VIDEO' ? (
+                          <video src={asset.url} muted preload="metadata" className="h-full w-full object-cover"
+                            onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                            onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                          />
+                        ) : (
+                          <div className="flex flex-col h-full items-center justify-center gap-1.5 bg-secondary p-2">
+                            <Music className="h-6 w-6 text-muted-foreground shrink-0" />
+                            <span className="text-[9px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{asset.filename}</span>
+                            <audio src={asset.url} controls preload="metadata" className="w-full shrink-0" style={{ height: '24px' }} onClick={(e) => e.stopPropagation()} />
+                          </div>
+                        )}
+                        {asset.type === 'VIDEO' && <Video className="absolute top-1.5 left-1.5 h-4 w-4 text-white drop-shadow" />}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="h-[150px]" style={{ background: 'linear-gradient(135deg,#cda472,#6e4a28)' }} />
                 )}
@@ -462,7 +641,7 @@ export default function ComposerPage() {
 
       {/* Media picker dialog */}
       <Dialog open={mediaPickerOpen} onOpenChange={setMediaPickerOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Выбрать из библиотеки</DialogTitle>
           </DialogHeader>
@@ -474,13 +653,13 @@ export default function ComposerPage() {
               </a>
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-2 max-h-[400px] overflow-auto">
+            <div className="grid grid-cols-3 gap-3 max-h-[500px] overflow-auto" style={{ gridAutoRows: '180px' }}>
               {assets.map((asset) => {
                 const isSelected = selectedAssets.some((a) => a.id === asset.id);
                 return (
                   <div
                     key={asset.id}
-                    className={`relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-all ${
+                    className={`relative rounded-xl border-2 cursor-pointer transition-all h-full ${
                       isSelected
                         ? 'border-primary ring-2 ring-primary/30'
                         : 'border-border hover:border-ring'
@@ -488,14 +667,35 @@ export default function ComposerPage() {
                     onClick={() => (isSelected ? removeAsset(asset.id) : addAsset(asset))}
                   >
                     {asset.type === 'IMAGE' ? (
-                      <img src={asset.url} alt={asset.filename} className="h-full w-full object-cover" />
+                      <img src={asset.url} alt={asset.filename} className="h-full w-full object-cover rounded-[10px]" />
+                    ) : asset.type === 'VIDEO' ? (
+                      <video
+                        src={asset.url}
+                        muted
+                        preload="metadata"
+                        className="h-full w-full object-cover rounded-[10px]"
+                        onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                        onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                      />
                     ) : (
-                      <div className="flex h-full items-center justify-center bg-secondary text-[11px] text-muted-foreground">
-                        {asset.filename}
+                      <div className="flex flex-col h-full items-center justify-center gap-2 bg-secondary rounded-[10px] px-4 py-3 overflow-hidden">
+                        <Music className="h-9 w-9 text-muted-foreground shrink-0" />
+                        <span className="text-xs font-medium text-muted-foreground text-center leading-tight line-clamp-2 w-full shrink-0">{asset.filename}</span>
+                        <audio
+                          src={asset.url}
+                          controls
+                          preload="metadata"
+                          className="w-full shrink-0"
+                          style={{ height: '32px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       </div>
                     )}
+                    <div className="absolute top-1.5 left-1.5">
+                      {asset.type === 'VIDEO' && <Video className="h-4 w-4 text-white drop-shadow" />}
+                    </div>
                     {isSelected && (
-                      <div className="absolute top-1 right-1">
+                      <div className="absolute top-1.5 right-1.5">
                         <CheckCircle2 className="h-5 w-5 text-primary" />
                       </div>
                     )}

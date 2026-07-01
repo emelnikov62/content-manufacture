@@ -56,32 +56,29 @@ export class PostproxyAdapter implements PublishingProvider {
     }
 
     try {
-      const response = await this.request<any>('POST', '/api/posts', {
-        text: request.text,
-        mediaUrls: request.mediaUrls,
-        profileIds: request.targets.map((t) => t.profileId),
-        platformSpecific: request.targets.reduce(
-          (acc, t) => {
-            if (t.networkParams && Object.keys(t.networkParams).length > 0) {
-              acc[t.profileId] = t.networkParams;
-            }
-            return acc;
-          },
-          {} as Record<string, unknown>,
-        ),
-      });
+      const platforms: Record<string, Record<string, unknown>> = {};
+      for (const t of request.targets) {
+        if (t.networkParams && Object.keys(t.networkParams).length > 0) {
+          const net = t.network.toLowerCase();
+          platforms[net] = { ...(platforms[net] || {}), ...t.networkParams };
+        }
+      }
 
-      return request.targets.map((t) => {
-        const result = response?.postIds?.[t.profileId];
-        const error = response?.errors?.[t.profileId];
-        return {
-          profileId: t.profileId,
-          network: t.network,
-          success: !error && !!result,
-          externalId: result,
-          error: error?.message,
-        };
-      });
+      const body: Record<string, unknown> = {
+        post: { body: request.text },
+        profiles: request.targets.map((t) => t.profileId),
+        platforms,
+      };
+      if (request.mediaUrls?.length) body.media = request.mediaUrls;
+
+      const response = await this.request<any>('POST', '/api/posts', body);
+
+      return request.targets.map((t) => ({
+        profileId: t.profileId,
+        network: t.network,
+        success: true,
+        externalId: response?.id ?? response?.data?.id,
+      }));
     } catch (err: any) {
       return request.targets.map((t) => ({
         profileId: t.profileId,
@@ -103,27 +100,29 @@ export class PostproxyAdapter implements PublishingProvider {
     }
 
     try {
-      const response = await this.request<any>('POST', '/api/posts', {
-        text: request.text,
-        mediaUrls: request.mediaUrls,
-        profileIds: request.targets.map((t) => t.profileId),
-        scheduledAt: request.scheduledAt?.toISOString(),
-        platformSpecific: request.targets.reduce(
-          (acc, t) => {
-            if (t.networkParams && Object.keys(t.networkParams).length > 0) {
-              acc[t.profileId] = t.networkParams;
-            }
-            return acc;
-          },
-          {} as Record<string, unknown>,
-        ),
-      });
+      const platforms: Record<string, Record<string, unknown>> = {};
+      for (const t of request.targets) {
+        if (t.networkParams && Object.keys(t.networkParams).length > 0) {
+          const net = t.network.toLowerCase();
+          platforms[net] = { ...(platforms[net] || {}), ...t.networkParams };
+        }
+      }
+
+      const body: Record<string, unknown> = {
+        post: { body: request.text },
+        profiles: request.targets.map((t) => t.profileId),
+        platforms,
+        scheduled_at: request.scheduledAt?.toISOString(),
+      };
+      if (request.mediaUrls?.length) body.media = request.mediaUrls;
+
+      const response = await this.request<any>('POST', '/api/posts', body);
 
       return request.targets.map((t) => ({
         profileId: t.profileId,
         network: t.network,
         success: true,
-        externalId: response?.postIds?.[t.profileId],
+        externalId: response?.id ?? response?.data?.id,
       }));
     } catch (err: any) {
       return request.targets.map((t) => ({
