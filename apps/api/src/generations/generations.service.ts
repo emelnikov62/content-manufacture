@@ -436,6 +436,7 @@ export class GenerationsService {
     const body: Record<string, any> = {
       prompt,
       model,
+      callBackUrl: '',
       customMode: p.customMode ?? false,
       instrumental: p.instrumental ?? false,
     };
