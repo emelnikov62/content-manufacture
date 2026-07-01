@@ -99,8 +99,16 @@ export default function ComposerPage() {
   })();
 
   const publishMutation = useMutation({
-    mutationFn: (data: any) =>
-      editId ? api.patch(`/posts/${editId}`, data) : api.post('/posts', data),
+    mutationFn: async (data: any) => {
+      const post = editId
+        ? await api.patch<any>(`/posts/${editId}`, data)
+        : await api.post<any>('/posts', data);
+      if (submitMode === 'publish') {
+        const postId = post?.id || editId;
+        await api.post(`/publications/${postId}/publish`);
+      }
+      return post;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post', editId] });
@@ -109,7 +117,7 @@ export default function ComposerPage() {
       if (submitMode !== 'draft') router.push('/posts');
     },
     onError: (err: any) => {
-      toast.error(err?.message || 'Не удалось сохранить пост');
+      toast.error(err?.message || 'Не удалось опубликовать');
     },
   });
 
@@ -198,7 +206,6 @@ export default function ComposerPage() {
       .filter((a) => !a.id.startsWith('gen-'))
       .map((a) => a.id);
     const data: any = {
-      brandId: currentBrandId,
       title,
       body,
       assetIds: realAssetIds,
@@ -210,6 +217,7 @@ export default function ComposerPage() {
         networkParams: networkParams[accountId] || {},
       })),
     };
+    if (!editId) data.brandId = currentBrandId;
     if (mode === 'schedule') data.scheduledAt = scheduledAt || undefined;
     publishMutation.mutate(data);
   }
