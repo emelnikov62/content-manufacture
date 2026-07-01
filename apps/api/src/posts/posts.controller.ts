@@ -90,8 +90,17 @@ export class PostsController {
 
   @Post(':id/schedule-delete')
   async scheduleDelete(@Param('id') id: string, @Body() body: { deleteAt: string }) {
-    await this.schedulerService.scheduleDelete(id, new Date(body.deleteAt));
+    const deleteAt = new Date(body.deleteAt);
+    await this.postsService.setDeleteAt(id, deleteAt);
+    await this.schedulerService.scheduleDelete(id, deleteAt);
     return { scheduled: true };
+  }
+
+  @Post(':id/cancel-delete')
+  async cancelDelete(@Param('id') id: string) {
+    const job = await this.schedulerService.cancelScheduledDelete(id);
+    await this.postsService.setDeleteAt(id, null);
+    return { cancelled: true };
   }
 
   @Patch(':id/trash')

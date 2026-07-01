@@ -50,6 +50,7 @@ interface Post {
   body: string | null;
   status: string;
   scheduledAt: string | null;
+  deleteAt: string | null;
   createdAt: string;
   brand?: { name: string; color: string };
   targets?: { account: { network: string; handle: string } }[];
@@ -242,6 +243,12 @@ export default function PostsPage() {
                           new Date(post.scheduledAt).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
                         : pill.label}
                     </span>
+                    {post.deleteAt && (
+                      <span className="block text-[11px] text-destructive mt-1">
+                        🗑 Удаление: {new Date(post.deleteAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })}{' '}
+                        {new Date(post.deleteAt).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
                   </td>
                   <td className="py-[13px] px-3 border-0 text-muted-foreground">
                     {post.createdAt
@@ -259,7 +266,7 @@ export default function PostsPage() {
                           <Undo2 className="h-4 w-4 text-muted-foreground" />
                         </button>
                       )}
-                      {!isDeletedTab && (
+                      {!isDeletedTab && post.status !== 'PUBLISHING' && (
                         <button
                           className="h-8 w-8 rounded-lg hover:bg-foreground/10 flex items-center justify-center transition-colors"
                           title="Редактировать"

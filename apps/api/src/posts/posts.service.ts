@@ -218,6 +218,10 @@ export class PostsService {
     return result;
   }
 
+  async setDeleteAt(id: string, deleteAt: Date | null) {
+    return this.prisma.post.update({ where: { id }, data: { deleteAt } });
+  }
+
   async delete(id: string) {
     return this.prisma.post.delete({ where: { id } });
   }

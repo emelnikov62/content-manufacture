@@ -41,6 +41,14 @@ export class SchedulerService {
     this.logger.log(`Scheduled delete for post ${postId} at ${deleteAt.toISOString()}`);
   }
 
+  async cancelScheduledDelete(postId: string) {
+    const job = await this.publishQueue.getJob(`delete-${postId}`);
+    if (job) {
+      await job.remove();
+      this.logger.log(`Cancelled scheduled delete for post ${postId}`);
+    }
+  }
+
   async cancelScheduledPost(postId: string) {
     const job = await this.publishQueue.getJob(postId);
     if (job) {

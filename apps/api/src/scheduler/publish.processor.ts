@@ -25,7 +25,7 @@ export class PublishProcessor extends WorkerHost {
         await this.publicationsService.deletePublishedPost(postId);
         await this.prisma.post.update({
           where: { id: postId },
-          data: { status: PostStatus.DELETED },
+          data: { status: PostStatus.DELETED, deleteAt: null },
         });
         this.logger.log(`Post ${postId} deleted by schedule`);
       } catch (err: any) {

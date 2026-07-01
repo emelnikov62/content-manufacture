@@ -156,6 +156,7 @@ model Post {
   body        String     @default("")
   status      PostStatus @default(DRAFT)
   scheduledAt DateTime?
+  deleteAt    DateTime?
   createdById String
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

@@ -102,6 +102,16 @@ export default function ComposerPage() {
     return [...uploadedAssets, ...dedupedGen];
   })();
 
+  const cancelDeleteMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/posts/${id}/cancel-delete`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['post', editId] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Удаление отменено');
+    },
+    onError: () => toast.error('Не удалось отменить удаление'),
+  });
+
   const publishMutation = useMutation({
     mutationFn: async ({ payload, mode }: { payload: any; mode: string }) => {
       if (mode === 'schedule-delete') {
@@ -684,16 +694,26 @@ export default function ComposerPage() {
 
       {/* Sticky bottom editbar */}
       <div className="sticky bottom-0 bg-card border border-border rounded-[22px] shadow-card px-4 py-3 flex items-center gap-2.5 mt-1">
-        <span className={`pill-status ${existingPost?.status === 'PUBLISHED' ? 'pill-published' : 'pill-draft'}`}>
+        <span className={`pill-status ${existingPost?.deleteAt ? 'pill-error' : existingPost?.status === 'PUBLISHED' ? 'pill-published' : 'pill-draft'}`}>
           <span className="pill-dot" />
-          {existingPost?.status === 'PUBLISHED' ? 'Опубликовано' : 'Черновик'}
+          {existingPost?.deleteAt
+            ? `Удаление: ${new Date(existingPost.deleteAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })} ${new Date(existingPost.deleteAt).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })}`
+            : existingPost?.status === 'PUBLISHED' ? 'Опубликовано' : 'Черновик'}
         </span>
         <span className="text-[12.5px] text-muted-foreground">
           {selectedAccounts.length} {selectedAccounts.length === 1 ? 'сеть выбрана' : 'сетей выбрано'}
           {validationErrors.length > 0 && ` · ${validationErrors.length} предупреждени${validationErrors.length === 1 ? 'е' : 'я'}`}
         </span>
         <div className="ml-auto flex gap-2.5">
-          {existingPost?.status === 'PUBLISHED' ? (
+          {existingPost?.deleteAt ? (
+            <button
+              className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-primary text-primary bg-card hover:bg-primary/10 transition-colors hover:shadow-card disabled:opacity-50"
+              onClick={() => cancelDeleteMutation.mutate(editId!)}
+              disabled={cancelDeleteMutation.isPending}
+            >
+              Отменить удаление
+            </button>
+          ) : existingPost?.status === 'PUBLISHED' ? (
             <>
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
