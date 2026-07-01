@@ -14,15 +14,7 @@ import {
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
-
-const NETWORK_ICONS: Record<string, string> = {
-  INSTAGRAM: '📷',
-  TIKTOK: '🎵',
-  TELEGRAM: '✈️',
-  THREADS: '🧵',
-  FACEBOOK: '📘',
-  TWITTER: '𝕏',
-};
+import { NetworkIcon } from '@/components/icons/network-icon';
 
 const STATUS_STYLES: Record<string, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
@@ -153,9 +145,7 @@ export default function DashboardPage() {
                     </span>
                     <div className="flex gap-1.5">
                       {post.targets?.map((t: any, i: number) => (
-                        <span key={i} className="text-xs">
-                          {NETWORK_ICONS[t.account?.network] || ''}
-                        </span>
+                        <NetworkIcon key={i} network={t.account?.network} className="w-[14px] h-[14px]" />
                       ))}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -198,7 +188,7 @@ export default function DashboardPage() {
                     <XCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                       <p className="text-[13px] font-semibold">
-                        {NETWORK_ICONS[pub.postTarget?.account?.network]}{' '}
+                        <NetworkIcon network={pub.postTarget?.account?.network} className="w-[14px] h-[14px] inline" />{' '}
                         @{pub.postTarget?.account?.handle}
                       </p>
                       <p className="text-[11.5px] text-muted-foreground truncate">

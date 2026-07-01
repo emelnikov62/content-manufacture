@@ -17,6 +17,7 @@ import {
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { NetworkIcon } from '@/components/icons/network-icon';
 import {
   Dialog,
   DialogContent,
@@ -323,7 +324,7 @@ export default function ComposerPage() {
                         className="w-[20px] h-[20px] rounded-[6px] grid place-items-center text-white text-[10px] shrink-0"
                         style={{ background: meta?.color || '#333' }}
                       >
-                        {meta?.icon}
+                        <NetworkIcon network={acc.network} className="w-[12px] h-[12px]" />
                       </span>
                       {meta?.label}
                     </button>
@@ -389,7 +390,7 @@ export default function ComposerPage() {
                       className="w-[24px] h-[24px] rounded-[7px] grid place-items-center text-white text-[11px] shrink-0"
                       style={{ background: meta.color }}
                     >
-                      {meta.icon}
+                      <NetworkIcon network={acc.network} className="w-[14px] h-[14px]" />
                     </span>
                     {meta.label} · @{acc.handle}
                     <span className="ml-auto text-[11px] text-muted-foreground">

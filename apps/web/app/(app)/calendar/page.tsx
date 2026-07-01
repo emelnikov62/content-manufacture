@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { NetworkIcon } from '@/components/icons/network-icon';
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 const MONTHS = [
@@ -157,9 +158,7 @@ export default function CalendarPage() {
                         className="text-[11px] font-semibold py-1 px-[7px] rounded-lg flex items-center gap-[5px] bg-card border-l-[3px] border-l-primary overflow-hidden whitespace-nowrap text-ellipsis"
                       >
                         {post.targets?.[0]?.account?.network && (
-                          <span className="text-[9px]">
-                            {NETWORK_ICONS[post.targets[0].account.network]}
-                          </span>
+                          <NetworkIcon network={post.targets[0].account.network} className="w-[10px] h-[10px]" />
                         )}
                         <span className="truncate">
                           {post.body?.slice(0, 20) || 'Без текста'}

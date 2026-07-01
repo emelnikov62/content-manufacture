@@ -7,6 +7,7 @@ import { Pencil, Trash2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import { NetworkIcon } from '@/components/icons/network-icon';
 import {
   Dialog,
   DialogContent,
@@ -183,7 +184,7 @@ export default function PostsPage() {
                           className="w-[24px] h-[24px] rounded-[7px] grid place-items-center text-white text-[12px] font-extrabold shrink-0"
                           style={{ background: NETWORK_COLORS[net] || '#333' }}
                         >
-                          {NETWORK_ICONS[net]}
+                          <NetworkIcon network={net} className="w-[14px] h-[14px]" />
                         </span>
                       ))}
                     </div>

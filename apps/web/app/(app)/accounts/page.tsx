@@ -16,6 +16,7 @@ import {
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { toast } from 'sonner';
+import { NetworkIcon } from '@/components/icons/network-icon';
 
 const NETWORKS = [
   { value: 'TELEGRAM', label: 'Telegram', icon: '✈️', color: '#2AABEE' },
@@ -161,7 +162,7 @@ export default function AccountsPage() {
       <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-[32px] h-[32px] rounded-lg grid place-items-center text-white text-[14px]" style={{ background: '#2AABEE' }}>
-            ✈️
+            <NetworkIcon network="TELEGRAM" className="w-[18px] h-[18px]" />
           </div>
           <span className="font-bold text-[15px]">Telegram</span>
           <span className="text-[11px] text-muted-foreground">BYO-бот через PostProxy</span>
@@ -193,7 +194,7 @@ export default function AccountsPage() {
                 <div key={acc.id} className="border border-border rounded-xl overflow-hidden">
                   <div className="flex items-center gap-3 px-4 py-3">
                     <div className="w-[28px] h-[28px] rounded-lg grid place-items-center text-white text-[12px] shrink-0" style={{ background: '#2AABEE' }}>
-                      ✈️
+                      <NetworkIcon network="TELEGRAM" className="w-[18px] h-[18px]" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="font-semibold text-[13.5px]">@{acc.handle}</span>
@@ -279,7 +280,7 @@ export default function AccountsPage() {
                     <td className="py-[13px] px-3 border-t border-border">
                       <div className="flex items-center gap-[11px]">
                         <div className="w-[28px] h-[28px] rounded-lg grid place-items-center text-white text-[12px] font-bold shrink-0" style={{ background: net?.color || '#333' }}>
-                          {net?.icon}
+                          <NetworkIcon network={acc.network} className="w-[14px] h-[14px]" />
                         </div>
                         <span className="font-semibold">@{acc.handle}</span>
                       </div>
@@ -311,7 +312,7 @@ export default function AccountsPage() {
           {NETWORKS.filter((n) => n.soon).map((n) => (
             <div key={n.value} className="flex items-center gap-2.5 rounded-xl border border-border px-3.5 py-3 opacity-50">
               <div className="w-[28px] h-[28px] rounded-lg grid place-items-center text-white text-[12px]" style={{ background: n.color }}>
-                {n.icon}
+                <NetworkIcon network={n.value} className="w-[14px] h-[14px]" />
               </div>
               <span className="text-[12.5px] font-semibold">{n.label}</span>
             </div>
@@ -345,7 +346,7 @@ export default function AccountsPage() {
                       }`}
                     >
                       <div className="w-[32px] h-[32px] rounded-lg grid place-items-center text-white text-[14px]" style={{ background: n.color }}>
-                        {n.icon}
+                        <NetworkIcon network={n.value} className="w-[14px] h-[14px]" />
                       </div>
                       <span className="font-semibold text-[13.5px]">{n.label}</span>
                       {n.soon && <span className="ml-auto text-[11px] text-muted-foreground">Скоро</span>}

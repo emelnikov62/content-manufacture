@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { NetworkIcon } from '@/components/icons/network-icon';
 
 const CONVERSATIONS = [
   {
@@ -129,7 +130,7 @@ export default function MessagesPage() {
                     className="absolute -right-1 -bottom-1 w-[16px] h-[16px] rounded-[5px] grid place-items-center text-white text-[9px] font-extrabold"
                     style={{ background: NETWORK_COLORS[conv.network] || '#333' }}
                   >
-                    {conv.networkIcon}
+                    <NetworkIcon network={conv.network} className="w-[10px] h-[10px]" />
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">

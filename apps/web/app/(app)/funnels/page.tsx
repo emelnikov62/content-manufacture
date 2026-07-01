@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { NetworkIcon } from '@/components/icons/network-icon';
 
 const NETWORK_COLORS: Record<string, string> = {
   INSTAGRAM: 'linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)',
@@ -116,7 +117,7 @@ export default function FunnelsPage() {
                       className="w-[24px] h-[24px] rounded-[7px] grid place-items-center text-white text-[12px] font-extrabold inline-grid"
                       style={{ background: NETWORK_COLORS[funnel.network] || '#333' }}
                     >
-                      {funnel.networkIcon}
+                      <NetworkIcon network={funnel.network} className="w-[14px] h-[14px]" />
                     </span>
                   </td>
                   <td className="py-[13px] px-3 border-t border-border">
