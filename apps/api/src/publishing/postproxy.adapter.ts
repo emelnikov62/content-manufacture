@@ -139,6 +139,19 @@ export class PostproxyAdapter implements PublishingProvider {
     }
   }
 
+  async deletePost(externalId: string) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
+      return { success: true };
+    }
+    try {
+      await this.request('DELETE', `/api/posts/${externalId}`, undefined, apiKey);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
   async getPublicationStatus(externalId: string) {
     const apiKey = await this.getApiKey();
     if (!apiKey) {

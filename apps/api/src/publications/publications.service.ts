@@ -132,6 +132,21 @@ export class PublicationsService {
     return result;
   }
 
+  async deletePublishedPost(postId: string) {
+    const publications = await this.prisma.publication.findMany({
+      where: { postTarget: { postId }, status: 'PUBLISHED', externalId: { not: null } },
+    });
+    for (const pub of publications) {
+      if (pub.externalId && !pub.externalId.startsWith('sim_')) {
+        try {
+          await this.publisher.deletePost(pub.externalId);
+        } catch (err) {
+          this.logger.warn(`Failed to delete external post ${pub.externalId}: ${err}`);
+        }
+      }
+    }
+  }
+
   findByPost(postId: string) {
     return this.prisma.publication.findMany({
       where: { postTarget: { postId } },

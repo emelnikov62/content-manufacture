@@ -8,9 +8,11 @@ import {
   Post,
   Query,
   UseGuards,
+  Logger,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { SchedulerService } from '../scheduler/scheduler.service';
+import { PublicationsService } from '../publications/publications.service';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CreatePostDto, UpdatePostDto } from './posts.dto';
@@ -19,9 +21,12 @@ import { PostStatus } from '@prisma/client';
 @UseGuards(JwtAuthGuard)
 @Controller('posts')
 export class PostsController {
+  private readonly logger = new Logger(PostsController.name);
+
   constructor(
     private postsService: PostsService,
     private schedulerService: SchedulerService,
+    private publicationsService: PublicationsService,
   ) {}
 
   @Get()
@@ -52,6 +57,7 @@ export class PostsController {
 
   @Post()
   async create(@Body() dto: CreatePostDto, @CurrentUser('sub') userId: string) {
+    this.logger.log(`Creating post: brandId=${dto.brandId}, userId=${userId}, targets=${dto.targets?.length}, assets=${dto.assetIds?.length}`);
     const post = await this.postsService.create(dto, userId);
 
     if (post.scheduledAt) {
@@ -78,6 +84,7 @@ export class PostsController {
   @Delete(':id')
   async delete(@Param('id') id: string) {
     await this.schedulerService.cancelScheduledPost(id);
+    await this.publicationsService.deletePublishedPost(id);
     return this.postsService.delete(id);
   }
 }
