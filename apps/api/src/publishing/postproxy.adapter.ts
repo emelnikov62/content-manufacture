@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   PublishingProvider,
   PublishRequest,
@@ -12,21 +12,24 @@ import {
 export class PostproxyAdapter implements PublishingProvider {
   private readonly logger = new Logger(PostproxyAdapter.name);
   private readonly apiUrl = 'https://api.postproxy.dev';
-  private readonly apiKey: string;
 
-  constructor(private config: ConfigService) {
-    this.apiKey = this.config.get<string>('POSTPROXY_API_KEY', '');
+  constructor(private prisma: PrismaService) {}
+
+  private async getApiKey(): Promise<string> {
+    const row = await this.prisma.setting.findUnique({ where: { key: 'POSTPROXY_API_KEY' } });
+    return row?.value ?? '';
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown, apiKey?: string): Promise<T> {
     const url = `${this.apiUrl}${path}`;
     this.logger.debug(`${method} ${url}`);
+    const key = apiKey || await this.getApiKey();
 
     const init: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${key}`,
       },
     };
     if (body) {
@@ -45,7 +48,8 @@ export class PostproxyAdapter implements PublishingProvider {
   }
 
   async publish(request: PublishRequest): Promise<PublishResult[]> {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
       this.logger.warn('Postproxy API key not configured, simulating publish');
       return request.targets.map((t) => ({
         profileId: t.profileId,
@@ -71,7 +75,7 @@ export class PostproxyAdapter implements PublishingProvider {
       };
       if (request.mediaUrls?.length) body.media = request.mediaUrls;
 
-      const response = await this.request<any>('POST', '/api/posts', body);
+      const response = await this.request<any>('POST', '/api/posts', body, apiKey);
 
       return request.targets.map((t) => ({
         profileId: t.profileId,
@@ -90,7 +94,8 @@ export class PostproxyAdapter implements PublishingProvider {
   }
 
   async schedule(request: PublishRequest): Promise<PublishResult[]> {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
       return request.targets.map((t) => ({
         profileId: t.profileId,
         network: t.network,
@@ -116,7 +121,7 @@ export class PostproxyAdapter implements PublishingProvider {
       };
       if (request.mediaUrls?.length) body.media = request.mediaUrls;
 
-      const response = await this.request<any>('POST', '/api/posts', body);
+      const response = await this.request<any>('POST', '/api/posts', body, apiKey);
 
       return request.targets.map((t) => ({
         profileId: t.profileId,
@@ -135,7 +140,8 @@ export class PostproxyAdapter implements PublishingProvider {
   }
 
   async getPublicationStatus(externalId: string) {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
       return { status: 'published' };
     }
     const response = await this.request<any>('GET', `/api/posts/${externalId}`);
@@ -143,7 +149,8 @@ export class PostproxyAdapter implements PublishingProvider {
   }
 
   async sendDirectMessage(request: DirectMessageRequest) {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
       return { success: true };
     }
     try {
@@ -160,7 +167,8 @@ export class PostproxyAdapter implements PublishingProvider {
   }
 
   async sendPrivateReply(request: PrivateReplyRequest) {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
       return { success: true };
     }
     try {

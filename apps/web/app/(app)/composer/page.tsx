@@ -95,7 +95,9 @@ export default function ComposerPage() {
         filename: `${g.modelName}-${g.id.slice(-6)}.${g.type === 'video' ? 'mp4' : g.type === 'audio' ? 'mp3' : 'png'}`,
       }));
     });
-    return [...uploadedAssets, ...genAssets];
+    const existingUrls = new Set(uploadedAssets.map((a) => a.url));
+    const dedupedGen = genAssets.filter((a) => !existingUrls.has(a.url));
+    return [...uploadedAssets, ...dedupedGen];
   })();
 
   const publishMutation = useMutation({
