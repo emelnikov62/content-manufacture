@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
   Hash,
   X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import {
@@ -40,6 +41,8 @@ interface Asset { id: string; type: string; url: string; thumbnailUrl: string | 
 
 export default function ComposerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get('edit');
   const queryClient = useQueryClient();
   const currentBrandId = useAppStore((s) => s.currentBrandId);
   const accessToken = useAppStore((s) => s.accessToken);
@@ -52,6 +55,14 @@ export default function ComposerPage() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [networkParams, setNetworkParams] = useState<Record<string, Record<string, string>>>({});
   const [placements, setPlacements] = useState<Record<string, { id: string; name: string }[]>>({});
+  const [submitMode, setSubmitMode] = useState<'draft' | 'schedule' | 'publish'>('draft');
+  const [loaded, setLoaded] = useState(false);
+
+  const { data: existingPost } = useQuery<any>({
+    queryKey: ['post', editId],
+    queryFn: () => api.get(`/posts/${editId}`),
+    enabled: !!editId,
+  });
 
   const { data: accounts = [] } = useQuery<Account[]>({
     queryKey: ['accounts', currentBrandId],
@@ -87,10 +98,17 @@ export default function ComposerPage() {
   })();
 
   const publishMutation = useMutation({
-    mutationFn: (data: any) => api.post('/posts', data),
+    mutationFn: (data: any) =>
+      editId ? api.patch(`/posts/${editId}`, data) : api.post('/posts', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      router.push('/posts');
+      queryClient.invalidateQueries({ queryKey: ['post', editId] });
+      const msg = submitMode === 'draft' ? 'Черновик сохранён' : submitMode === 'schedule' ? 'Публикация запланирована' : 'Пост опубликован';
+      toast.success(msg);
+      if (submitMode !== 'draft') router.push('/posts');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Не удалось сохранить пост');
     },
   });
 
@@ -111,6 +129,39 @@ export default function ComposerPage() {
       }
     } catch {}
   }, [placements]);
+
+  useEffect(() => {
+    if (!existingPost || loaded) return;
+    setBody(existingPost.body || '');
+    setScheduledAt(existingPost.scheduledAt ? new Date(existingPost.scheduledAt).toISOString().slice(0, 16) : '');
+    if (existingPost.targets?.length) {
+      const accIds = existingPost.targets.map((t: any) => t.accountId || t.account?.id);
+      setSelectedAccounts(accIds.filter(Boolean));
+      const params: Record<string, Record<string, string>> = {};
+      for (const t of existingPost.targets) {
+        const accId = t.accountId || t.account?.id;
+        if (accId && t.networkParamsJson && typeof t.networkParamsJson === 'object') {
+          params[accId] = t.networkParamsJson as Record<string, string>;
+        }
+        if (t.account?.network === 'TELEGRAM' && accId) {
+          loadPlacements(accId);
+        }
+      }
+      setNetworkParams(params);
+    }
+    if (existingPost.assets?.length) {
+      setSelectedAssets(
+        existingPost.assets.map((pa: any) => ({
+          id: pa.asset.id,
+          type: pa.asset.type,
+          url: pa.asset.url,
+          thumbnailUrl: pa.asset.thumbnailUrl,
+          filename: pa.asset.filename,
+        })),
+      );
+    }
+    setLoaded(true);
+  }, [existingPost, loaded, loadPlacements]);
 
   function toggleAccount(id: string) {
     const acc = accounts.find((a) => a.id === id);
@@ -140,16 +191,24 @@ export default function ComposerPage() {
   }
 
   function handleSubmit(mode: 'draft' | 'schedule' | 'publish') {
-    publishMutation.mutate({
+    setSubmitMode(mode);
+    const realAssetIds = selectedAssets
+      .filter((a) => !a.id.startsWith('gen-'))
+      .map((a) => a.id);
+    const data: any = {
       brandId: currentBrandId,
       body,
-      scheduledAt: mode === 'schedule' ? scheduledAt || undefined : undefined,
+      assetIds: realAssetIds,
+      mediaUrls: selectedAssets
+        .filter((a) => a.id.startsWith('gen-'))
+        .map((a) => a.url),
       targets: selectedAccounts.map((accountId) => ({
         accountId,
         networkParams: networkParams[accountId] || {},
       })),
-      assetIds: selectedAssets.map((a) => a.id),
-    });
+    };
+    if (mode === 'schedule') data.scheduledAt = scheduledAt || undefined;
+    publishMutation.mutate(data);
   }
 
   const selectedNetworks = [
@@ -197,10 +256,10 @@ export default function ComposerPage() {
       <div className="flex items-end gap-3.5">
         <div>
           <h1 className="text-[26px] font-extrabold tracking-tight leading-tight">
-            Новый пост
+            {editId ? 'Редактировать пост' : 'Новый пост'}
           </h1>
           <p className="text-muted-foreground text-[13.5px] mt-1">
-            Соберите пост и адаптируйте под каждую сеть.
+            {editId ? 'Измените пост и сохраните.' : 'Соберите пост и адаптируйте под каждую сеть.'}
           </p>
         </div>
         <div className="ml-auto">
@@ -394,62 +453,68 @@ export default function ComposerPage() {
             <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
               Медиа
             </div>
-            <div className="flex gap-3 flex-wrap">
-              {selectedAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  className="relative w-[120px] h-[120px] rounded-[14px] overflow-hidden border border-border bg-secondary shrink-0"
-                >
-                  {asset.type === 'IMAGE' ? (
-                    <img src={asset.url} alt={asset.filename} className="h-full w-full object-cover" />
-                  ) : asset.type === 'VIDEO' ? (
-                    <video
-                      src={asset.url}
-                      muted
-                      preload="metadata"
-                      className="h-full w-full object-cover"
-                      onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
-                      onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
-                    />
-                  ) : (
-                    <div className="flex flex-col h-full items-center justify-center gap-1 p-1.5">
-                      <Music className="h-5 w-5 text-muted-foreground shrink-0" />
-                      <span className="text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{asset.filename}</span>
-                      <audio
-                        src={asset.url}
-                        controls
-                        preload="metadata"
-                        className="w-full shrink-0"
-                        style={{ height: '24px' }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+            <div className="flex flex-col gap-3">
+              {selectedAssets.length > 0 && (
+                <div className="flex gap-3 flex-wrap">
+                  {selectedAssets.map((asset) => (
+                    <div
+                      key={asset.id}
+                      className="relative w-[120px] h-[120px] rounded-[14px] overflow-hidden border border-border bg-secondary shrink-0"
+                    >
+                      {asset.type === 'IMAGE' ? (
+                        <img src={asset.url} alt={asset.filename} className="h-full w-full object-cover" />
+                      ) : asset.type === 'VIDEO' ? (
+                        <video
+                          src={asset.url}
+                          muted
+                          preload="metadata"
+                          className="h-full w-full object-cover"
+                          onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                          onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                        />
+                      ) : (
+                        <div className="flex flex-col h-full items-center justify-center gap-1 p-1.5">
+                          <Music className="h-5 w-5 text-muted-foreground shrink-0" />
+                          <span className="text-[8px] text-muted-foreground text-center leading-tight line-clamp-2 w-full">{asset.filename}</span>
+                          <audio
+                            src={asset.url}
+                            controls
+                            preload="metadata"
+                            className="w-full shrink-0"
+                            style={{ height: '24px' }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                      )}
+                      <div className="absolute top-1 left-1">
+                        {asset.type === 'VIDEO' && <Video className="h-3.5 w-3.5 text-white drop-shadow" />}
+                        {asset.type === 'AUDIO' && <Music className="h-3.5 w-3.5 text-white drop-shadow" />}
+                      </div>
+                      <button
+                        className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center"
+                        onClick={() => removeAsset(asset.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                     </div>
-                  )}
-                  <div className="absolute top-1 left-1">
-                    {asset.type === 'VIDEO' && <Video className="h-3.5 w-3.5 text-white drop-shadow" />}
-                    {asset.type === 'AUDIO' && <Music className="h-3.5 w-3.5 text-white drop-shadow" />}
-                  </div>
-                  <button
-                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-black/60 text-white flex items-center justify-center"
-                    onClick={() => removeAsset(asset.id)}
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  ))}
                 </div>
-              ))}
-              <button
-                className="h-[120px] inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
-                onClick={() => setMediaPickerOpen(true)}
-              >
-                + Из библиотеки
-              </button>
-              <button
-                className="h-[120px] inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
-                onClick={() => document.getElementById('composer-upload')?.click()}
-              >
-                <Upload className="h-4 w-4" />
-                Загрузить
-              </button>
+              )}
+              <div className="flex gap-3">
+                <button
+                  className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
+                  onClick={() => setMediaPickerOpen(true)}
+                >
+                  + Из библиотеки
+                </button>
+                <button
+                  className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
+                  onClick={() => document.getElementById('composer-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Загрузить
+                </button>
+              </div>
               <input
                 id="composer-upload"
                 type="file"

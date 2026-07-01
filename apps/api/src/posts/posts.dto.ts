@@ -36,6 +36,11 @@ export class CreatePostDto {
   @IsArray()
   @IsString({ each: true })
   assetIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  mediaUrls?: string[];
 }
 
 export class UpdatePostDto {
@@ -50,4 +55,20 @@ export class UpdatePostDto {
   @IsOptional()
   @IsEnum(PostStatus)
   status?: PostStatus;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreatePostTargetDto)
+  targets?: CreatePostTargetDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  assetIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  mediaUrls?: string[];
 }
