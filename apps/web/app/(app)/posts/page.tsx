@@ -1,10 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { Pencil, Trash2, Send } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const NETWORK_ICONS: Record<string, string> = {
   INSTAGRAM: '📷', TIKTOK: '🎵', TELEGRAM: '✈️',
@@ -35,6 +43,7 @@ const TABS = [
 
 interface Post {
   id: string;
+  title: string | null;
   body: string | null;
   status: string;
   scheduledAt: string | null;
@@ -45,7 +54,9 @@ interface Post {
 
 export default function PostsPage() {
   const currentBrandId = useAppStore((s) => s.currentBrandId);
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState('all');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: posts = [] } = useQuery<Post[]>({
     queryKey: ['posts', currentBrandId],
@@ -53,6 +64,15 @@ export default function PostsPage() {
       const params = currentBrandId ? `?brandId=${currentBrandId}` : '';
       return api.get(`/posts${params}`);
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/posts/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Пост удалён');
+    },
+    onError: () => toast.error('Не удалось удалить пост'),
   });
 
   const filtered = tab === 'all' ? posts : posts.filter((p) => p.status === tab);
@@ -110,43 +130,52 @@ export default function PostsPage() {
         <table className="w-full border-collapse text-[13px] min-w-[600px]">
           <thead>
             <tr>
-              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">
+              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3 border-b border-border">
                 Пост
               </th>
-              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">
+              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3 border-b border-border">
                 Сети
               </th>
-              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">
+              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3 border-b border-border">
                 Направление
               </th>
-              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">
+              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3 border-b border-border">
                 Статус
               </th>
-              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3">
+              <th className="text-left text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3 border-b border-border">
                 Время
               </th>
+              <th className="text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase pb-3 px-3 border-b border-border">
+                Действия
+              </th>
             </tr>
+            <tr><td colSpan={6} className="h-2 p-0"></td></tr>
           </thead>
           <tbody>
             {filtered.map((post) => {
               const pill = STATUS_PILL[post.status] || STATUS_PILL.DRAFT;
               const networks = [...new Set(post.targets?.map((t) => t.account?.network) || [])];
               return (
-                <tr key={post.id} className="hover:bg-secondary transition-colors">
-                  <td className="py-[13px] px-3 border-t border-border">
+                <tr key={post.id} className="hover:bg-secondary transition-colors rounded-xl [&>td:first-child]:rounded-l-xl [&>td:last-child]:rounded-r-xl">
+                  <td className="py-[13px] px-3 border-0">
                     <div className="flex items-center gap-[11px]">
                       <div
                         className="w-[38px] h-[38px] rounded-[10px] shrink-0"
                         style={{ background: 'linear-gradient(135deg,#caa46f,#6c4a2a)' }}
                       />
                       <div className="min-w-0">
-                        <span className="block font-semibold truncate max-w-[200px]">
-                          {post.body?.slice(0, 40) || 'Без текста'}
+                        <span className="block font-semibold truncate max-w-[250px]">
+                          {post.title || 'Без названия'}
                         </span>
+                        {post.body && (
+                          <span className="block text-[11.5px] text-muted-foreground truncate max-w-[250px]">
+                            {post.body.slice(0, 60)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
-                  <td className="py-[13px] px-3 border-t border-border">
+                  <td className="py-[13px] px-3 border-0">
                     <div className="flex gap-[5px]">
                       {networks.map((net) => (
                         <span
@@ -159,7 +188,7 @@ export default function PostsPage() {
                       ))}
                     </div>
                   </td>
-                  <td className="py-[13px] px-3 border-t border-border">
+                  <td className="py-[13px] px-3 border-0">
                     {post.brand && (
                       <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold">
                         <span
@@ -170,7 +199,7 @@ export default function PostsPage() {
                       </span>
                     )}
                   </td>
-                  <td className="py-[13px] px-3 border-t border-border">
+                  <td className="py-[13px] px-3 border-0">
                     <span className={`pill-status ${pill.cls}`}>
                       <span className="pill-dot" />
                       {post.status === 'SCHEDULED' && post.scheduledAt
@@ -180,10 +209,37 @@ export default function PostsPage() {
                         : pill.label}
                     </span>
                   </td>
-                  <td className="py-[13px] px-3 border-t border-border text-muted-foreground">
+                  <td className="py-[13px] px-3 border-0 text-muted-foreground">
                     {post.createdAt
                       ? new Date(post.createdAt).toLocaleDateString('ru', { day: 'numeric', month: 'short' })
                       : '—'}
+                  </td>
+                  <td className="py-[13px] px-3 border-0">
+                    <div className="flex gap-1.5 justify-end">
+                      <button
+                        className="h-8 w-8 rounded-lg hover:bg-foreground/10 flex items-center justify-center transition-colors"
+                        title="Редактировать"
+                        onClick={() => window.location.href = `/composer?edit=${post.id}`}
+                      >
+                        <Pencil className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                      {post.status === 'DRAFT' && (
+                        <button
+                          className="h-8 w-8 rounded-lg hover:bg-primary/20 flex items-center justify-center transition-colors"
+                          title="Опубликовать"
+                          onClick={() => window.location.href = `/composer?edit=${post.id}&publish=1`}
+                        >
+                          <Send className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      )}
+                      <button
+                        className="h-8 w-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center transition-colors"
+                        title="Удалить"
+                        onClick={() => setDeleteId(post.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -199,6 +255,34 @@ export default function PostsPage() {
           </p>
         )}
       </div>
+
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить пост?</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            Пост будет удалён без возможности восстановления.
+          </p>
+          <div className="flex gap-2.5 mt-2">
+            <button
+              className="flex-1 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors"
+              onClick={() => setDeleteId(null)}
+            >
+              Отмена
+            </button>
+            <button
+              className="flex-1 font-bold text-[13px] rounded-xl px-4 py-2.5 bg-destructive text-destructive-foreground hover:brightness-90 transition-all"
+              onClick={() => {
+                if (deleteId) deleteMutation.mutate(deleteId);
+                setDeleteId(null);
+              }}
+            >
+              Удалить
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

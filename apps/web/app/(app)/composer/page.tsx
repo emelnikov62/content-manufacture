@@ -47,6 +47,7 @@ export default function ComposerPage() {
   const currentBrandId = useAppStore((s) => s.currentBrandId);
   const accessToken = useAppStore((s) => s.accessToken);
 
+  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [scheduledAt, setScheduledAt] = useState('');
@@ -132,6 +133,7 @@ export default function ComposerPage() {
 
   useEffect(() => {
     if (!existingPost || loaded) return;
+    setTitle(existingPost.title || '');
     setBody(existingPost.body || '');
     setScheduledAt(existingPost.scheduledAt ? new Date(existingPost.scheduledAt).toISOString().slice(0, 16) : '');
     if (existingPost.targets?.length) {
@@ -197,6 +199,7 @@ export default function ComposerPage() {
       .map((a) => a.id);
     const data: any = {
       brandId: currentBrandId,
+      title,
       body,
       assetIds: realAssetIds,
       mediaUrls: selectedAssets
@@ -315,6 +318,19 @@ export default function ComposerPage() {
                   );
                 })
               )}
+            </div>
+
+            {/* Title */}
+            <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
+              Название
+            </div>
+            <div className="border border-border rounded-[11px] focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)] mb-4">
+              <input
+                placeholder="Название поста…"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full border-0 rounded-[11px] px-3 py-2.5 text-[13.5px] bg-transparent outline-none"
+              />
             </div>
 
             {/* Text */}

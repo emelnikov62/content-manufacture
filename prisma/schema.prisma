@@ -151,6 +151,7 @@ model Asset {
 model Post {
   id          String     @id @default(cuid())
   brandId     String
+  title       String     @default("")
   body        String     @default("")
   status      PostStatus @default(DRAFT)
   scheduledAt DateTime?

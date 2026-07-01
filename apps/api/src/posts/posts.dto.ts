@@ -20,6 +20,10 @@ export class CreatePostDto {
   @IsString()
   brandId: string;
 
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @IsString()
   body: string;
 
@@ -44,6 +48,10 @@ export class CreatePostDto {
 }
 
 export class UpdatePostDto {
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @IsOptional()
   @IsString()
   body?: string;

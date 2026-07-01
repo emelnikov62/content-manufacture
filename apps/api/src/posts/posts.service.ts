@@ -78,6 +78,7 @@ export class PostsService {
     return this.prisma.post.create({
       data: {
         brandId: dto.brandId,
+        title: dto.title || '',
         body: dto.body,
         status: dto.scheduledAt ? PostStatus.SCHEDULED : PostStatus.DRAFT,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
@@ -146,6 +147,7 @@ export class PostsService {
     return this.prisma.post.update({
       where: { id },
       data: {
+        ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.body !== undefined && { body: dto.body }),
         ...(dto.scheduledAt !== undefined && {
           scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : null,
