@@ -267,8 +267,12 @@ export default function StudioPage() {
       const el = klingElements[idx];
       if (!el) return;
       const maxFiles = el.type === 'image' ? 4 : 1;
-      if (el.urls.includes(asset.url) || el.urls.length >= maxFiles) return;
-      setKlingElements((prev) => prev.map((e, i) => i === idx ? { ...e, urls: [...e.urls, asset.url] } : e));
+      if (el.urls.includes(asset.url)) {
+        setKlingElements((prev) => prev.map((e, i) => i === idx ? { ...e, urls: e.urls.filter((u) => u !== asset.url) } : e));
+        return;
+      }
+      const newUrls = el.urls.length >= maxFiles ? [asset.url] : [...el.urls, asset.url];
+      setKlingElements((prev) => prev.map((e, i) => i === idx ? { ...e, urls: newUrls } : e));
     } else {
       if (imageInputs.find((i) => i.url === asset.url)) return;
       setImageInputs((prev) => [...prev, { url: asset.url, name: asset.filename }]);
@@ -1184,10 +1188,30 @@ export default function StudioPage() {
                 ) : mediaAssets.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground text-center py-8">{emptyLabel}</p>
                 ) : (
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className={isAudio ? 'flex flex-col gap-2' : 'grid grid-cols-4 gap-2'}>
                     {mediaAssets.map((asset) => {
                       const picked = isPickedFn(asset.url);
-                      return (
+                      return isAudio ? (
+                        <div
+                          key={asset.id}
+                          onClick={() => handlePickMedia(asset)}
+                          className={`flex items-center gap-3 rounded-xl border-2 p-3 cursor-pointer transition-colors ${
+                            picked ? 'border-primary bg-primary/5' : 'border-border hover:border-ring'
+                          }`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12.5px] font-semibold truncate">{asset.filename}</p>
+                            <audio
+                              src={asset.url}
+                              controls
+                              preload="metadata"
+                              className="w-full h-8 mt-1.5"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          {picked && <span className="text-primary text-[16px] font-bold shrink-0">✓</span>}
+                        </div>
+                      ) : (
                         <button
                           key={asset.id}
                           onClick={() => handlePickMedia(asset)}
@@ -1196,9 +1220,14 @@ export default function StudioPage() {
                           }`}
                         >
                           {isVideo ? (
-                            <video src={asset.url} muted className="w-full h-full object-cover" />
-                          ) : isAudio ? (
-                            <div className="w-full h-full bg-secondary grid place-items-center text-[24px]">🎵</div>
+                            <video
+                              src={asset.url}
+                              muted
+                              preload="metadata"
+                              className="w-full h-full object-cover"
+                              onMouseEnter={(e) => (e.target as HTMLVideoElement).play().catch(() => {})}
+                              onMouseLeave={(e) => { const v = e.target as HTMLVideoElement; v.pause(); v.currentTime = 0; }}
+                            />
                           ) : (
                             <img src={asset.thumbnailUrl || asset.url} alt={asset.filename} className="w-full h-full object-cover" />
                           )}
@@ -1253,14 +1282,24 @@ export default function StudioPage() {
                   className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
                 />
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 <span className="text-[11px] font-semibold text-muted-foreground">Стиль</span>
-                <input
-                  value={personaForm.style}
-                  onChange={(e) => setPersonaForm((f) => ({ ...f, style: e.target.value }))}
-                  placeholder="Electronic Pop"
-                  className="text-[13px] border border-border rounded-lg px-3 py-2 outline-none focus:border-ring bg-transparent"
-                />
+                <div className="flex flex-wrap gap-1 max-h-[120px] overflow-y-auto">
+                  {MUSIC_STYLES.map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      className={`text-[11.5px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                        personaForm.style === s.value
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+                      }`}
+                      onClick={() => setPersonaForm((f) => ({ ...f, style: f.style === s.value ? '' : s.value }))}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="flex gap-3">
                 <div className="flex-1 flex flex-col gap-1">
