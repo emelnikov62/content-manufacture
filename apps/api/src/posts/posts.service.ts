@@ -248,13 +248,23 @@ export class PostsService {
     return this.prisma.post.findMany({
       where: {
         brandId,
-        scheduledAt: { gte: from, lte: to },
+        status: { not: PostStatus.DELETED },
+        OR: [
+          { scheduledAt: { gte: from, lte: to } },
+          { status: PostStatus.PUBLISHED, createdAt: { gte: from, lte: to } },
+          { status: PostStatus.PUBLISHING, createdAt: { gte: from, lte: to } },
+        ],
       },
       include: {
-        targets: { include: { account: { select: { id: true, network: true, handle: true } } } },
+        targets: {
+          include: {
+            account: { select: { id: true, network: true, handle: true } },
+            publication: { select: { publishedAt: true } },
+          },
+        },
         createdBy: { select: { id: true, name: true } },
       },
-      orderBy: { scheduledAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }
