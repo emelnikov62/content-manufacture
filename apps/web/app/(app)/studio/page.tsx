@@ -236,14 +236,12 @@ export default function StudioPage() {
 
     const elType = target?.type === 'element' ? klingElements[target.idx]?.type : null;
     const assetType = elType === 'video' ? 'VIDEO' : elType === 'audio' ? 'AUDIO' : 'IMAGE';
-    const genType = elType === 'video' ? 'video' : 'image';
+    const genType = elType === 'video' ? 'video' : elType === 'audio' ? 'audio' : 'image';
 
     try {
       const [uploaded, generated] = await Promise.all([
         api.get<any[]>(`/assets?brandId=${currentBrandId}&type=${assetType}`),
-        elType === 'audio'
-          ? Promise.resolve([])
-          : api.get<any[]>(`/generations/media?brandId=${currentBrandId}&type=${genType}`),
+        api.get<any[]>(`/generations/media?brandId=${currentBrandId}&type=${genType}`),
       ]);
       const genAssets = generated.flatMap((g: any) => {
         const urls = (g.result || '').split('\n').filter(Boolean);
