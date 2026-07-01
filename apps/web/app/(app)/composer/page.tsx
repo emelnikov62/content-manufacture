@@ -99,25 +99,27 @@ export default function ComposerPage() {
   })();
 
   const publishMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async ({ payload, mode }: { payload: any; mode: string }) => {
       const post = editId
-        ? await api.patch<any>(`/posts/${editId}`, data)
-        : await api.post<any>('/posts', data);
-      if (submitMode === 'publish') {
+        ? await api.patch<any>(`/posts/${editId}`, payload)
+        : await api.post<any>('/posts', payload);
+      if (mode === 'publish') {
         const postId = post?.id || editId;
         await api.post(`/publications/${postId}/publish`);
       }
       return post;
     },
-    onSuccess: () => {
+    onSuccess: (post, { mode }) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['post', editId] });
-      const msg = submitMode === 'draft' ? 'Черновик сохранён' : submitMode === 'schedule' ? 'Публикация запланирована' : 'Пост опубликован';
+      if (mode === 'draft' && post?.id && !editId) {
+        router.replace(`/composer?edit=${post.id}`);
+      }
+      const msg = mode === 'draft' ? 'Черновик сохранён' : mode === 'schedule' ? 'Публикация запланирована' : 'Пост опубликован';
       toast.success(msg);
-      if (submitMode !== 'draft') router.push('/posts');
+      if (mode !== 'draft') router.push('/posts');
     },
     onError: (err: any) => {
-      toast.error(err?.message || 'Не удалось опубликовать');
+      toast.error(err?.message || 'Не удалось сохранить');
     },
   });
 
@@ -219,7 +221,7 @@ export default function ComposerPage() {
     };
     if (!editId) data.brandId = currentBrandId;
     if (mode === 'schedule') data.scheduledAt = scheduledAt || undefined;
-    publishMutation.mutate(data);
+    publishMutation.mutate({ payload: data, mode });
   }
 
   const selectedNetworks = [
