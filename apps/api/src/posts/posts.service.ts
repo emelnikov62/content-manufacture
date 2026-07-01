@@ -8,8 +8,11 @@ export class PostsService {
   constructor(private prisma: PrismaService) {}
 
   async findAllByBrand(brandId: string, status?: PostStatus) {
+    const statusFilter = status
+      ? { status }
+      : { status: { not: PostStatus.DELETED as PostStatus } };
     return this.prisma.post.findMany({
-      where: { brandId, ...(status && { status }) },
+      where: { brandId, ...statusFilter },
       include: {
         brand: { select: { id: true, name: true, color: true } },
         targets: {
@@ -106,7 +109,24 @@ export class PostsService {
   }
 
   async update(id: string, dto: UpdatePostDto) {
+    let savedPubs: { accountId: string; status: any; externalId: string | null; publishedAt: Date | null; scheduledAt: Date | null; retryCount: number; error: string | null }[] = [];
+
     if (dto.targets !== undefined) {
+      const oldTargets = await this.prisma.postTarget.findMany({
+        where: { postId: id },
+        include: { publication: true },
+      });
+      savedPubs = oldTargets
+        .filter((t) => t.publication)
+        .map((t) => ({
+          accountId: t.accountId,
+          status: t.publication!.status,
+          externalId: t.publication!.externalId,
+          publishedAt: t.publication!.publishedAt,
+          scheduledAt: t.publication!.scheduledAt,
+          retryCount: t.publication!.retryCount,
+          error: t.publication!.error,
+        }));
       await this.prisma.postTarget.deleteMany({ where: { postId: id } });
     }
     if (dto.assetIds !== undefined || dto.mediaUrls !== undefined) {
@@ -144,7 +164,7 @@ export class PostsService {
       }
     }
 
-    return this.prisma.post.update({
+    const result = await this.prisma.post.update({
       where: { id },
       data: {
         ...(dto.title !== undefined && { title: dto.title }),
@@ -171,10 +191,31 @@ export class PostsService {
         }),
       },
       include: {
-        targets: { include: { account: true } },
+        targets: { include: { account: true, publication: true } },
         assets: { include: { asset: true } },
       },
     });
+
+    if (savedPubs.length > 0) {
+      for (const target of result.targets) {
+        const oldPub = savedPubs.find((p) => p.accountId === target.accountId);
+        if (oldPub) {
+          await this.prisma.publication.create({
+            data: {
+              postTargetId: target.id,
+              status: oldPub.status,
+              externalId: oldPub.externalId,
+              publishedAt: oldPub.publishedAt,
+              scheduledAt: oldPub.scheduledAt,
+              retryCount: oldPub.retryCount,
+              error: oldPub.error,
+            },
+          });
+        }
+      }
+    }
+
+    return result;
   }
 
   async delete(id: string) {

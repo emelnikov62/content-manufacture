@@ -29,6 +29,7 @@ enum PostStatus {
   PUBLISHING
   PUBLISHED
   ERROR
+  DELETED
 }
 
 enum PublicationStatus {

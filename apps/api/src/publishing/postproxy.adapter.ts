@@ -139,10 +139,42 @@ export class PostproxyAdapter implements PublishingProvider {
     }
   }
 
+  async updatePost(externalId: string, request: PublishRequest) {
+    const apiKey = await this.getApiKey();
+    if (!apiKey) {
+      return { success: true };
+    }
+    try {
+      const platforms: Record<string, Record<string, unknown>> = {};
+      for (const t of request.targets) {
+        if (t.networkParams && Object.keys(t.networkParams).length > 0) {
+          const net = t.network.toLowerCase();
+          platforms[net] = { ...(platforms[net] || {}), ...t.networkParams };
+        }
+      }
+      const body: Record<string, unknown> = {
+        post: { body: request.text },
+        profiles: request.targets.map((t) => t.profileId),
+        platforms,
+      };
+      if (request.mediaUrls?.length) body.media = request.mediaUrls;
+      await this.request('PUT', `/api/posts/${externalId}`, body, apiKey);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  }
+
   async deletePost(externalId: string) {
     const apiKey = await this.getApiKey();
     if (!apiKey) {
       return { success: true };
+    }
+    try {
+      await this.request('POST', `/api/posts/${externalId}/delete_on_platform`, {}, apiKey);
+      this.logger.log(`Requested platform deletion for ${externalId}`);
+    } catch (err: any) {
+      this.logger.warn(`Platform deletion failed for ${externalId}: ${err.message}`);
     }
     try {
       await this.request('DELETE', `/api/posts/${externalId}`, undefined, apiKey);
@@ -158,6 +190,18 @@ export class PostproxyAdapter implements PublishingProvider {
       return { status: 'published' };
     }
     const response = await this.request<any>('GET', `/api/posts/${externalId}`);
+    const platforms: any[] = response.platforms || [];
+    if (platforms.length > 0) {
+      const hasError = platforms.some((p: any) => p.status === 'error' || p.status === 'failed');
+      const allPublished = platforms.every((p: any) => p.status === 'published');
+      if (hasError) {
+        const err = platforms.find((p: any) => p.error)?.error;
+        return { status: 'error', error: err };
+      }
+      if (allPublished) {
+        return { status: 'published' };
+      }
+    }
     return { status: response.status, error: response.error };
   }
 

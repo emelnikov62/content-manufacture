@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Pencil, Trash2, Send } from 'lucide-react';
+import { Pencil, Trash2, Send, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
@@ -32,14 +32,16 @@ const STATUS_PILL: Record<string, { cls: string; label: string }> = {
   PUBLISHING: { cls: 'pill-live', label: 'Публикуется' },
   PUBLISHED: { cls: 'pill-published', label: 'Опубликовано' },
   ERROR: { cls: 'pill-error', label: 'Ошибка' },
+  DELETED: { cls: 'pill-error', label: 'Удалён' },
 };
 
 const TABS = [
   { key: 'all', label: 'Все' },
   { key: 'DRAFT', label: 'Черновики' },
   { key: 'SCHEDULED', label: 'Запланировано' },
+  { key: 'PUBLISHING', label: 'В обработке' },
   { key: 'PUBLISHED', label: 'Опубликовано' },
-  { key: 'ERROR', label: 'Ошибки' },
+  { key: 'DELETED', label: 'Удалённые' },
 ];
 
 interface Post {
@@ -65,20 +67,51 @@ export default function PostsPage() {
       const params = currentBrandId ? `?brandId=${currentBrandId}` : '';
       return api.get(`/posts${params}`);
     },
+    refetchInterval: 5000,
+  });
+
+  const { data: deletedPosts = [] } = useQuery<Post[]>({
+    queryKey: ['posts', currentBrandId, 'DELETED'],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (currentBrandId) params.set('brandId', currentBrandId);
+      params.set('status', 'DELETED');
+      return api.get(`/posts?${params}`);
+    },
+  });
+
+  const trashMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/posts/${id}/trash`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Пост перемещён в удалённые');
+    },
+    onError: () => toast.error('Не удалось удалить пост'),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/posts/${id}`, { status: 'DRAFT' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      toast.success('Пост восстановлен в черновики');
+    },
+    onError: () => toast.error('Не удалось восстановить пост'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/posts/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      toast.success('Пост удалён');
+      toast.success('Пост удалён навсегда');
     },
     onError: () => toast.error('Не удалось удалить пост'),
   });
 
-  const filtered = tab === 'all' ? posts : posts.filter((p) => p.status === tab);
+  const isDeletedTab = tab === 'DELETED';
+  const activePosts = isDeletedTab ? deletedPosts : posts;
+  const filtered = tab === 'all' ? posts : activePosts.filter((p) => isDeletedTab || p.status === tab);
 
-  const counts: Record<string, number> = { all: posts.length };
+  const counts: Record<string, number> = { all: posts.length, DELETED: deletedPosts.length };
   posts.forEach((p) => {
     counts[p.status] = (counts[p.status] || 0) + 1;
   });
@@ -217,13 +250,24 @@ export default function PostsPage() {
                   </td>
                   <td className="py-[13px] px-3 border-0">
                     <div className="flex gap-1.5 justify-end">
-                      <button
-                        className="h-8 w-8 rounded-lg hover:bg-foreground/10 flex items-center justify-center transition-colors"
-                        title="Редактировать"
-                        onClick={() => window.location.href = `/composer?edit=${post.id}`}
-                      >
-                        <Pencil className="h-4 w-4 text-muted-foreground" />
-                      </button>
+                      {isDeletedTab && (
+                        <button
+                          className="h-8 w-8 rounded-lg hover:bg-primary/20 flex items-center justify-center transition-colors"
+                          title="Вернуть в черновики"
+                          onClick={() => restoreMutation.mutate(post.id)}
+                        >
+                          <Undo2 className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      )}
+                      {!isDeletedTab && (
+                        <button
+                          className="h-8 w-8 rounded-lg hover:bg-foreground/10 flex items-center justify-center transition-colors"
+                          title="Редактировать"
+                          onClick={() => window.location.href = `/composer?edit=${post.id}`}
+                        >
+                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      )}
                       {post.status === 'DRAFT' && (
                         <button
                           className="h-8 w-8 rounded-lg hover:bg-primary/20 flex items-center justify-center transition-colors"
@@ -260,10 +304,12 @@ export default function PostsPage() {
       <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Удалить пост?</DialogTitle>
+            <DialogTitle>{isDeletedTab ? 'Удалить навсегда?' : 'Удалить пост?'}</DialogTitle>
           </DialogHeader>
           <p className="text-[13px] text-muted-foreground">
-            Пост будет удалён без возможности восстановления.
+            {isDeletedTab
+              ? 'Пост будет удалён из системы без возможности восстановления.'
+              : 'Пост будет перемещён в раздел «Удалённые». Вы сможете восстановить его позже.'}
           </p>
           <div className="flex gap-2.5 mt-2">
             <button
@@ -275,11 +321,17 @@ export default function PostsPage() {
             <button
               className="flex-1 font-bold text-[13px] rounded-xl px-4 py-2.5 bg-destructive text-destructive-foreground hover:brightness-90 transition-all"
               onClick={() => {
-                if (deleteId) deleteMutation.mutate(deleteId);
+                if (deleteId) {
+                  if (isDeletedTab) {
+                    deleteMutation.mutate(deleteId);
+                  } else {
+                    trashMutation.mutate(deleteId);
+                  }
+                }
                 setDeleteId(null);
               }}
             >
-              Удалить
+              {isDeletedTab ? 'Удалить навсегда' : 'Удалить'}
             </button>
           </div>
         </DialogContent>

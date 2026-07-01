@@ -57,7 +57,8 @@ export default function ComposerPage() {
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [networkParams, setNetworkParams] = useState<Record<string, Record<string, string>>>({});
   const [placements, setPlacements] = useState<Record<string, { id: string; name: string }[]>>({});
-  const [submitMode, setSubmitMode] = useState<'draft' | 'schedule' | 'publish'>('draft');
+  const [submitMode, setSubmitMode] = useState<'draft' | 'schedule' | 'publish' | 'republish' | 'schedule-delete'>('draft');
+  const [scheduleMode, setScheduleMode] = useState<'publish' | 'update' | 'delete'>('publish');
   const [loaded, setLoaded] = useState(false);
 
   const { data: existingPost } = useQuery<any>({
@@ -103,6 +104,10 @@ export default function ComposerPage() {
 
   const publishMutation = useMutation({
     mutationFn: async ({ payload, mode }: { payload: any; mode: string }) => {
+      if (mode === 'schedule-delete') {
+        await api.post(`/posts/${editId}/schedule-delete`, { deleteAt: payload.deleteAt });
+        return null;
+      }
       const post = editId
         ? await api.patch<any>(`/posts/${editId}`, payload)
         : await api.post<any>('/posts', payload);
@@ -117,7 +122,11 @@ export default function ComposerPage() {
       if (mode === 'draft' && post?.id && !editId) {
         router.replace(`/composer?edit=${post.id}`);
       }
-      const msg = mode === 'draft' ? 'Черновик сохранён' : mode === 'schedule' ? 'Публикация запланирована' : 'Пост опубликован';
+      const msg = mode === 'draft' ? 'Черновик сохранён'
+        : mode === 'republish' ? 'Пост отправлен на обновление'
+        : mode === 'schedule-delete' ? 'Удаление запланировано'
+        : mode === 'schedule' ? 'Обновление запланировано'
+        : 'Пост отправлен на публикацию';
       toast.success(msg);
       if (mode !== 'draft') router.push('/posts');
     },
@@ -205,8 +214,12 @@ export default function ComposerPage() {
     setSelectedAssets((prev) => prev.filter((a) => a.id !== id));
   }
 
-  function handleSubmit(mode: 'draft' | 'schedule' | 'publish') {
+  function handleSubmit(mode: 'draft' | 'schedule' | 'publish' | 'republish' | 'schedule-delete') {
     setSubmitMode(mode);
+    if (mode === 'schedule-delete') {
+      publishMutation.mutate({ payload: { deleteAt: scheduledAt }, mode });
+      return;
+    }
     const realAssetIds = selectedAssets
       .filter((a) => !a.id.startsWith('gen-'))
       .map((a) => a.id);
@@ -671,41 +684,74 @@ export default function ComposerPage() {
 
       {/* Sticky bottom editbar */}
       <div className="sticky bottom-0 bg-card border border-border rounded-[22px] shadow-card px-4 py-3 flex items-center gap-2.5 mt-1">
-        <span className="pill-status pill-draft">
+        <span className={`pill-status ${existingPost?.status === 'PUBLISHED' ? 'pill-published' : 'pill-draft'}`}>
           <span className="pill-dot" />
-          Черновик
+          {existingPost?.status === 'PUBLISHED' ? 'Опубликовано' : 'Черновик'}
         </span>
         <span className="text-[12.5px] text-muted-foreground">
           {selectedAccounts.length} {selectedAccounts.length === 1 ? 'сеть выбрана' : 'сетей выбрано'}
           {validationErrors.length > 0 && ` · ${validationErrors.length} предупреждени${validationErrors.length === 1 ? 'е' : 'я'}`}
         </span>
         <div className="ml-auto flex gap-2.5">
-          <button
-            className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
-            onClick={() => handleSubmit('draft')}
-            disabled={!body || publishMutation.isPending}
-          >
-            Сохранить
-          </button>
-          <button
-            className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
-            onClick={() => setScheduleOpen(true)}
-            disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending}
-          >
-            📅 Запланировать
-          </button>
-          <button
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50"
-            onClick={() => handleSubmit('publish')}
-            disabled={
-              !body ||
-              selectedAccounts.length === 0 ||
-              validationErrors.length > 0 ||
-              publishMutation.isPending
-            }
-          >
-            Опубликовать
-          </button>
+          {existingPost?.status === 'PUBLISHED' ? (
+            <>
+              <button
+                className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
+                onClick={() => { setScheduleMode('update'); setScheduleOpen(true); }}
+                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending}
+              >
+                📅 Запланировать обновление
+              </button>
+              <button
+                className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-destructive text-destructive bg-card hover:bg-destructive/10 transition-colors hover:shadow-card disabled:opacity-50"
+                onClick={() => { setScheduleMode('delete'); setScheduleOpen(true); }}
+                disabled={publishMutation.isPending}
+              >
+                🗑 Запланировать удаление
+              </button>
+              <button
+                className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50"
+                onClick={() => handleSubmit('republish')}
+                disabled={
+                  !body ||
+                  selectedAccounts.length === 0 ||
+                  validationErrors.length > 0 ||
+                  publishMutation.isPending
+                }
+              >
+                Обновить пост
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
+                onClick={() => handleSubmit('draft')}
+                disabled={!body || publishMutation.isPending}
+              >
+                Сохранить
+              </button>
+              <button
+                className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
+                onClick={() => { setScheduleMode('publish'); setScheduleOpen(true); }}
+                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending}
+              >
+                📅 Запланировать
+              </button>
+              <button
+                className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50"
+                onClick={() => handleSubmit('publish')}
+                disabled={
+                  !body ||
+                  selectedAccounts.length === 0 ||
+                  validationErrors.length > 0 ||
+                  publishMutation.isPending
+                }
+              >
+                Опубликовать
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -713,9 +759,16 @@ export default function ComposerPage() {
       <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Запланировать публикацию</DialogTitle>
+            <DialogTitle>
+              {scheduleMode === 'delete' ? 'Запланировать удаление' : scheduleMode === 'update' ? 'Запланировать обновление' : 'Запланировать публикацию'}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
+            {scheduleMode === 'delete' && (
+              <p className="text-[13px] text-muted-foreground">
+                Пост будет удалён из канала/группы и перемещён в «Удалённые» в указанное время.
+              </p>
+            )}
             <input
               type="datetime-local"
               value={scheduledAt}
@@ -723,11 +776,18 @@ export default function ComposerPage() {
               className="w-full border border-border rounded-[11px] p-2.5 text-[13.5px] bg-card outline-none focus:border-ring"
             />
             <button
-              className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50"
-              onClick={() => { setScheduleOpen(false); handleSubmit('schedule'); }}
+              className={`w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50 ${
+                scheduleMode === 'delete'
+                  ? 'bg-destructive text-destructive-foreground'
+                  : 'bg-primary text-primary-foreground'
+              }`}
+              onClick={() => {
+                setScheduleOpen(false);
+                handleSubmit(scheduleMode === 'delete' ? 'schedule-delete' : 'schedule');
+              }}
               disabled={!scheduledAt || publishMutation.isPending}
             >
-              Запланировать
+              {scheduleMode === 'delete' ? 'Запланировать удаление' : scheduleMode === 'update' ? 'Запланировать обновление' : 'Запланировать'}
             </button>
           </div>
         </DialogContent>

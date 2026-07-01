@@ -35,6 +35,7 @@ export interface PrivateReplyRequest {
 export interface PublishingProvider {
   publish(request: PublishRequest): Promise<PublishResult[]>;
   schedule(request: PublishRequest): Promise<PublishResult[]>;
+  updatePost(externalId: string, request: PublishRequest): Promise<{ success: boolean; error?: string }>;
   deletePost(externalId: string): Promise<{ success: boolean; error?: string }>;
   getPublicationStatus(externalId: string): Promise<{ status: string; error?: string }>;
   sendDirectMessage(request: DirectMessageRequest): Promise<{ success: boolean; error?: string }>;

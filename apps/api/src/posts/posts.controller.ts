@@ -69,6 +69,9 @@ export class PostsController {
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdatePostDto) {
+    const existing = await this.postsService.findById(id);
+    const wasPublished = existing.status === PostStatus.PUBLISHED;
+
     const post = await this.postsService.update(id, dto);
 
     if (dto.scheduledAt !== undefined) {
@@ -78,7 +81,24 @@ export class PostsController {
       }
     }
 
+    if (wasPublished) {
+      await this.publicationsService.updatePublishedPost(id);
+    }
+
     return post;
+  }
+
+  @Post(':id/schedule-delete')
+  async scheduleDelete(@Param('id') id: string, @Body() body: { deleteAt: string }) {
+    await this.schedulerService.scheduleDelete(id, new Date(body.deleteAt));
+    return { scheduled: true };
+  }
+
+  @Patch(':id/trash')
+  async trash(@Param('id') id: string) {
+    await this.schedulerService.cancelScheduledPost(id);
+    await this.publicationsService.deletePublishedPost(id);
+    return this.postsService.update(id, { status: PostStatus.DELETED });
   }
 
   @Delete(':id')
