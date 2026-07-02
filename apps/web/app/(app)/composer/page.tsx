@@ -608,14 +608,16 @@ export default function ComposerPage() {
               )}
               <div className="flex gap-3">
                 <button
-                  className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
+                  className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none"
                   onClick={() => setMediaPickerOpen(true)}
+                  disabled={hashtagsLoading}
                 >
                   + Из библиотеки
                 </button>
                 <button
-                  className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card"
+                  className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none"
                   onClick={() => document.getElementById('composer-upload')?.click()}
+                  disabled={hashtagsLoading}
                 >
                   <Upload className="h-4 w-4" />
                   Загрузить
@@ -722,10 +724,10 @@ export default function ComposerPage() {
             <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
               AI‑помощник
             </div>
-            <button onClick={() => setImageGenOpen(true)} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card mb-2">
+            <button onClick={() => setImageGenOpen(true)} disabled={hashtagsLoading} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none mb-2">
               ✦ Сгенерировать изображение
             </button>
-            <button onClick={() => setVideoGenOpen(true)} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
+            <button onClick={() => setVideoGenOpen(true)} disabled={hashtagsLoading} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
               🎬 Сгенерировать видео для Reels
             </button>
           </div>
@@ -763,7 +765,7 @@ export default function ComposerPage() {
             <button
               className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-primary text-primary bg-card hover:bg-primary/10 transition-colors hover:shadow-card disabled:opacity-50"
               onClick={() => cancelDeleteMutation.mutate(editId!)}
-              disabled={cancelDeleteMutation.isPending}
+              disabled={cancelDeleteMutation.isPending || hashtagsLoading}
             >
               Отменить удаление
             </button>
@@ -772,14 +774,14 @@ export default function ComposerPage() {
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => { setScheduleMode('update'); setScheduleOpen(true); }}
-                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending}
+                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending || hashtagsLoading}
               >
                 📅 Запланировать обновление
               </button>
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-destructive text-destructive bg-card hover:bg-destructive/10 transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => { setScheduleMode('delete'); setScheduleOpen(true); }}
-                disabled={publishMutation.isPending}
+                disabled={publishMutation.isPending || hashtagsLoading}
               >
                 🗑 Запланировать удаление
               </button>
@@ -790,7 +792,8 @@ export default function ComposerPage() {
                   !body ||
                   selectedAccounts.length === 0 ||
                   validationErrors.length > 0 ||
-                  publishMutation.isPending
+                  publishMutation.isPending ||
+                  hashtagsLoading
                 }
               >
                 Обновить пост
@@ -801,14 +804,14 @@ export default function ComposerPage() {
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => handleSubmit('draft')}
-                disabled={!body || publishMutation.isPending}
+                disabled={!body || publishMutation.isPending || hashtagsLoading}
               >
                 Сохранить
               </button>
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => { setScheduleMode('publish'); setScheduleOpen(true); }}
-                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending}
+                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending || hashtagsLoading}
               >
                 📅 Запланировать
               </button>
@@ -819,7 +822,8 @@ export default function ComposerPage() {
                   !body ||
                   selectedAccounts.length === 0 ||
                   validationErrors.length > 0 ||
-                  publishMutation.isPending
+                  publishMutation.isPending ||
+                  hashtagsLoading
                 }
               >
                 Опубликовать
