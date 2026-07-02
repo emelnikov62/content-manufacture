@@ -18,6 +18,7 @@ import {
   Link2,
   Menu,
   X,
+  TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/lib/store';
@@ -36,6 +37,7 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof LayoutDashboard; ba
   { href: '/calendar', label: 'Календарь', icon: CalendarDays },
   { href: '/media', label: 'Медиа', icon: Image },
   { href: '/posts', label: 'Посты', icon: PenSquare },
+  { href: '/trends', label: 'Тренды', icon: TrendingUp },
   { href: '/funnels', label: 'Воронки', icon: GitFork },
   { href: '/analytics', label: 'Аналитика', icon: BarChart3 },
   { href: '/messages', label: 'Сообщения', icon: MessageSquare, badge: '12' },

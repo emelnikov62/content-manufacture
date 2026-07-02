@@ -17,6 +17,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SettingsModule } from './settings/settings.module';
 import { GenerationsModule } from './generations/generations.module';
+import { TrendsModule } from './trends/trends.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { GenerationsModule } from './generations/generations.module';
     AnalyticsModule,
     SettingsModule,
     GenerationsModule,
+    TrendsModule,
   ],
 })
 export class AppModule {}
