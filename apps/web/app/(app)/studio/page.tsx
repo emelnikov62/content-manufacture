@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
@@ -117,8 +118,10 @@ interface Generation {
 }
 
 export default function StudioPage() {
+  const searchParams = useSearchParams();
   const currentBrandId = useAppStore((s) => s.currentBrandId);
-  const [tab, setTab] = useState('text');
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState(TABS.some((t) => t.key === initialTab) ? initialTab! : 'text');
   const [selectedModel, setSelectedModel] = useState(0);
   const [prompt, setPrompt] = useState('');
   const [modelParams, setModelParams] = useState<Record<string, string | boolean>>({});

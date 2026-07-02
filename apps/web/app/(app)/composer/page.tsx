@@ -24,6 +24,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { TextGenerationSidebar } from '@/components/features/text-generation-sidebar';
+import { MediaGenerationSidebar } from '@/components/features/media-generation-sidebar';
 
 const NETWORK_META: Record<
   string,
@@ -61,6 +63,9 @@ export default function ComposerPage() {
   const [submitMode, setSubmitMode] = useState<'draft' | 'schedule' | 'publish' | 'republish' | 'schedule-delete'>('draft');
   const [scheduleMode, setScheduleMode] = useState<'publish' | 'update' | 'delete'>('publish');
   const [loaded, setLoaded] = useState(false);
+  const [textGenOpen, setTextGenOpen] = useState(false);
+  const [imageGenOpen, setImageGenOpen] = useState(false);
+  const [videoGenOpen, setVideoGenOpen] = useState(false);
 
   const { data: existingPost } = useQuery<any>({
     queryKey: ['post', editId],
@@ -392,7 +397,7 @@ export default function ComposerPage() {
 
             {/* AI action buttons */}
             <div className="flex gap-2 mt-2.5">
-              <button className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
+              <button onClick={() => setTextGenOpen(true)} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
                 ✦ Сгенерировать текст
               </button>
               <button className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
@@ -675,10 +680,10 @@ export default function ComposerPage() {
             <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
               AI‑помощник
             </div>
-            <button className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card mb-2">
+            <button onClick={() => setImageGenOpen(true)} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card mb-2">
               ✦ Сгенерировать изображение
             </button>
-            <button className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
+            <button onClick={() => setVideoGenOpen(true)} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
               🎬 Сгенерировать видео для Reels
             </button>
           </div>
@@ -887,6 +892,26 @@ export default function ComposerPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <TextGenerationSidebar
+        open={textGenOpen}
+        onOpenChange={setTextGenOpen}
+        onInsert={(text) => setBody((prev) => prev ? prev + '\n\n' + text : text)}
+      />
+
+      <MediaGenerationSidebar
+        open={imageGenOpen}
+        onOpenChange={setImageGenOpen}
+        mode="image"
+        onInsert={addAsset}
+      />
+
+      <MediaGenerationSidebar
+        open={videoGenOpen}
+        onOpenChange={setVideoGenOpen}
+        mode="video"
+        onInsert={addAsset}
+      />
     </div>
   );
 }
