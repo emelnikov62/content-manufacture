@@ -21,8 +21,9 @@ export class TrendsController {
     @Query('cursor') cursor?: string,
     @Query('period') period?: string,
     @Query('sorting') sorting?: string,
+    @Query('country') country?: string,
   ) {
-    return this.trendsService.tiktokKeyword(name, cursor, period, sorting);
+    return this.trendsService.tiktokKeyword(name, cursor, period, sorting, country);
   }
 
   @Get('tiktok/post')
@@ -31,16 +32,16 @@ export class TrendsController {
   }
 
   @Get('instagram/search')
-  instagramSearch(@Query('keyword') keyword: string) {
-    return this.trendsService.instagramSearch(keyword);
+  instagramSearch(@Query('text') text: string) {
+    return this.trendsService.instagramSearch(text);
   }
 
   @Get('instagram/reels')
   instagramUserReels(
-    @Query('username') username: string,
+    @Query('userId') userId: string,
     @Query('depth') depth?: string,
   ) {
-    return this.trendsService.instagramUserReels(username, depth);
+    return this.trendsService.instagramUserReels(userId, depth);
   }
 
   @Get('instagram/user')
@@ -49,23 +50,25 @@ export class TrendsController {
   }
 
   @Get('instagram/post')
-  instagramPostInfo(@Query('url') url: string) {
-    return this.trendsService.instagramPostInfo(url);
+  instagramPostInfo(@Query('code') code: string) {
+    return this.trendsService.instagramPostInfo(code);
   }
 
   @Get('youtube/keyword')
   youtubeKeyword(
     @Query('keyword') keyword: string,
-    @Query('cursor') cursor?: string,
+    @Query('depth') depth?: string,
+    @Query('period') period?: string,
+    @Query('sorting') sorting?: string,
   ) {
-    return this.trendsService.youtubeKeyword(keyword, cursor);
+    return this.trendsService.youtubeKeyword(keyword, depth, period, sorting);
   }
 
   @Get('youtube/hashtag')
   youtubeHashtag(
-    @Query('hashtag') hashtag: string,
-    @Query('cursor') cursor?: string,
+    @Query('name') name: string,
+    @Query('depth') depth?: string,
   ) {
-    return this.trendsService.youtubeHashtag(hashtag, cursor);
+    return this.trendsService.youtubeHashtag(name, depth);
   }
 }

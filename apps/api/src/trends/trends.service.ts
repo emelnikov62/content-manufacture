@@ -36,42 +36,40 @@ export class TrendsService {
     return this.request('/tt/hashtag/posts', { name, cursor });
   }
 
-  async tiktokKeyword(name: string, cursor = '0', period?: string, sorting?: string) {
-    const params: Record<string, string> = { name, cursor };
-    if (period) params.period = period;
-    if (sorting) params.sorting = sorting;
-    return this.request('/tt/keyword/posts', params);
+  async tiktokKeyword(name: string, cursor = '0', period = '7', sorting = '0', country?: string) {
+    const params: Record<string, string> = { name, cursor, period, sorting };
+    if (country) params.country = country;
+    return this.request('/tt/keyword/search', params);
   }
 
   async tiktokPostInfo(url: string) {
     return this.request('/tt/post/info', { url });
   }
 
-  async instagramSearch(keyword: string) {
-    return this.request('/ig/search', { keyword });
+  async instagramSearch(text: string) {
+    return this.request('/instagram/search', { text });
   }
 
-  async instagramUserReels(username: string, depth = '1') {
-    return this.request('/ig/user/reels', { username, depth });
+  async instagramUserReels(userId: string, depth = '1') {
+    return this.request('/instagram/user/reels', { user_id: userId, depth });
   }
 
   async instagramUserInfo(username: string) {
-    return this.request('/ig/user/info', { username });
+    return this.request('/instagram/user/info', { username });
   }
 
-  async instagramPostInfo(url: string) {
-    return this.request('/ig/post/info', { url });
+  async instagramPostInfo(code: string) {
+    return this.request('/instagram/post/details', { code });
   }
 
-  async youtubeKeyword(keyword: string, cursor?: string) {
-    const params: Record<string, string> = { keyword };
-    if (cursor) params.cursor = cursor;
-    return this.request('/yt/keyword/search', params);
+  async youtubeKeyword(keyword: string, depth = '1', period?: string, sorting?: string) {
+    const params: Record<string, string> = { keyword, depth };
+    if (period) params.period = period;
+    if (sorting) params.sorting = sorting;
+    return this.request('/youtube/search', params);
   }
 
-  async youtubeHashtag(hashtag: string, cursor?: string) {
-    const params: Record<string, string> = { hashtag };
-    if (cursor) params.cursor = cursor;
-    return this.request('/yt/hashtag/search', params);
+  async youtubeHashtag(name: string, depth = '1') {
+    return this.request('/youtube/hashtag/search', { name, depth });
   }
 }

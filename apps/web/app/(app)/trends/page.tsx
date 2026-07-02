@@ -57,27 +57,33 @@ interface TrendResult {
 }
 
 function parseTikTokResults(data: any): TrendResult[] {
-  const posts = data?.data || [];
-  return posts.map((p: any) => ({
-    id: p.aweme_id || p.id || String(Math.random()),
-    platform: 'tiktok' as Platform,
-    type: 'video',
-    thumbnail: p.video?.cover?.url_list?.[0] || p.video?.origin_cover?.url_list?.[0],
-    videoUrl: p.video?.play_addr?.url_list?.[0],
-    description: p.desc || '',
-    author: p.author?.unique_id || p.author?.nickname || '',
-    authorAvatar: p.author?.avatar_thumb?.url_list?.[0],
-    likes: p.statistics?.digg_count,
-    views: p.statistics?.play_count,
-    comments: p.statistics?.comment_count,
-    shares: p.statistics?.share_count,
-    createdAt: p.create_time,
-    externalUrl: `https://www.tiktok.com/@${p.author?.unique_id}/video/${p.aweme_id}`,
-  }));
+  const inner = data?.data;
+  const raw = inner?.data ?? inner;
+  const posts = Array.isArray(raw) ? raw : [];
+  return posts.map((item: any) => {
+    const p = item.aweme_info || item;
+    return {
+      id: p.aweme_id || p.id || String(Math.random()),
+      platform: 'tiktok' as Platform,
+      type: 'video' as const,
+      thumbnail: p.video?.cover?.url_list?.[0] || p.video?.origin_cover?.url_list?.[0],
+      videoUrl: p.video?.play_addr?.url_list?.[0],
+      description: p.desc || '',
+      author: p.author?.unique_id || p.author?.nickname || '',
+      authorAvatar: p.author?.avatar_thumb?.url_list?.[0],
+      likes: p.statistics?.digg_count,
+      views: p.statistics?.play_count,
+      comments: p.statistics?.comment_count,
+      shares: p.statistics?.share_count,
+      createdAt: p.create_time,
+      externalUrl: `https://www.tiktok.com/@${p.author?.unique_id || ''}/video/${p.aweme_id || ''}`,
+    };
+  });
 }
 
 function parseInstagramReels(data: any): TrendResult[] {
-  const items = data?.data || [];
+  const raw = data?.data;
+  const items = Array.isArray(raw) ? raw : [];
   return items.map((p: any) => {
     const node = p.node || p;
     return {
@@ -98,7 +104,8 @@ function parseInstagramReels(data: any): TrendResult[] {
 }
 
 function parseInstagramSearch(data: any): TrendResult[] {
-  const items = data?.data || [];
+  const raw = data?.data;
+  const items = Array.isArray(raw) ? raw : [];
   return items.map((p: any) => ({
     id: p.pk || p.id || String(Math.random()),
     platform: 'instagram' as Platform,
@@ -116,7 +123,8 @@ function parseInstagramSearch(data: any): TrendResult[] {
 }
 
 function parseYouTubeResults(data: any): TrendResult[] {
-  const items = data?.data || [];
+  const raw = data?.data;
+  const items = Array.isArray(raw) ? raw : [];
   return items.map((p: any) => ({
     id: p.videoId || p.id || String(Math.random()),
     platform: 'youtube' as Platform,
@@ -182,22 +190,26 @@ export default function TrendsPage() {
         }
       } else if (platform === 'instagram') {
         if (searchMode === 'user') {
-          data = await api.get(`/trends/instagram/reels?username=${encodeURIComponent(query.replace('@', ''))}`);
+          const username = query.replace('@', '').trim();
+          const userInfo = await api.get<any>(`/trends/instagram/user?username=${encodeURIComponent(username)}`);
+          const userId = userInfo?.data?.user?.pk || userInfo?.data?.pk || userInfo?.data?.user?.id;
+          if (!userId) throw new Error('Пользователь не найден');
+          data = await api.get(`/trends/instagram/reels?userId=${userId}`);
           parsed = parseInstagramReels(data);
         } else {
-          data = await api.get(`/trends/instagram/search?keyword=${encodeURIComponent(query)}`);
+          data = await api.get(`/trends/instagram/search?text=${encodeURIComponent(query)}`);
           parsed = parseInstagramSearch(data);
         }
       } else {
         if (searchMode === 'hashtag') {
-          data = await api.get(`/trends/youtube/hashtag?hashtag=${encodeURIComponent(query.replace('#', ''))}&cursor=${cursor || ''}`);
+          data = await api.get(`/trends/youtube/hashtag?name=${encodeURIComponent(query.replace('#', ''))}`);
         } else {
-          data = await api.get(`/trends/youtube/keyword?keyword=${encodeURIComponent(query)}&cursor=${cursor || ''}`);
+          data = await api.get(`/trends/youtube/keyword?keyword=${encodeURIComponent(query)}`);
         }
         parsed = parseYouTubeResults(data);
       }
 
-      const nc = data?.nextCursor ?? data?.next_cursor ?? null;
+      const nc = data?.data?.nextCursor ?? data?.nextCursor ?? data?.next_cursor ?? null;
       setNextCursor(nc ? String(nc) : null);
 
       if (cursor) {
