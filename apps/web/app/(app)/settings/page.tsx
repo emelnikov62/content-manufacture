@@ -31,6 +31,18 @@ const INTEGRATIONS = [
     fields: [
       { key: 'POSTPROXY_API_KEY', label: 'API Key' },
       { key: 'POSTPROXY_WEBHOOK_SECRET', label: 'Webhook Secret' },
+      {
+        key: 'POSTPROXY_PLAN',
+        label: 'Тарифный план',
+        secret: false,
+        type: 'select',
+        options: [
+          { value: 'build', label: 'Build — $17/мес' },
+          { value: 'grow', label: 'Grow — $49/мес' },
+          { value: 'scale', label: 'Scale — $99/мес' },
+          { value: 'enterprise', label: 'Enterprise — $699/мес' },
+        ],
+      },
     ],
   },
   {
@@ -204,41 +216,59 @@ function IntegrationCard({
               setVisibleFields((v) => ({ ...v, [field.key]: true }));
             };
 
+            const isSelect = 'type' in field && (field as any).type === 'select';
+            const selectOptions: { value: string; label: string }[] = isSelect ? (field as any).options ?? [] : [];
+            const selectValue = values[field.key] ?? (existing?.configured ? existing.value : '');
+
             return (
               <div key={field.key}>
                 <label className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-1.5 block">
                   {field.label}
                 </label>
-                <div className="flex gap-2">
-                  <div className="flex-1 border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      data-1p-ignore
-                      data-lpignore="true"
-                      placeholder={existing?.configured ? existing.value : 'Не задан'}
-                      value={displayValue}
-                      onChange={(e) =>
-                        setValues((v) => ({ ...v, [field.key]: e.target.value }))
-                      }
+                {isSelect ? (
+                  <div className="border border-border rounded-[11px] focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+                    <select
+                      value={selectValue}
+                      onChange={(e) => setValues((v) => ({ ...v, [field.key]: e.target.value }))}
                       className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
-                      style={isSecret && !isRevealed ? { WebkitTextSecurity: 'disc', textSecurity: 'disc' } as React.CSSProperties : undefined}
-                    />
-                    {isSecret && (
-                      <button
-                        type="button"
-                        className="px-2 text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={toggleReveal}
-                      >
-                        {isRevealed ? (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        ) : (
-                          <Eye className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    )}
+                    >
+                      {selectOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <div className="flex-1 border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+                      <input
+                        type="text"
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
+                        placeholder={existing?.configured ? existing.value : 'Не задан'}
+                        value={displayValue}
+                        onChange={(e) =>
+                          setValues((v) => ({ ...v, [field.key]: e.target.value }))
+                        }
+                        className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
+                        style={isSecret && !isRevealed ? { WebkitTextSecurity: 'disc', textSecurity: 'disc' } as React.CSSProperties : undefined}
+                      />
+                      {isSecret && (
+                        <button
+                          type="button"
+                          className="px-2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={toggleReveal}
+                        >
+                          {isRevealed ? (
+                            <EyeOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <Eye className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}

@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 const INTEGRATION_KEYS = [
   'POSTPROXY_API_KEY',
   'POSTPROXY_WEBHOOK_SECRET',
+  'POSTPROXY_PLAN',
   'KIE_API_KEY',
   'ENSEMBLE_DATA_API_KEY',
   'ENSEMBLE_DATA_UNIT_PRICE',
@@ -13,6 +14,13 @@ const INTEGRATION_KEYS = [
   'S3_SECRET_KEY',
   'S3_BUCKET',
 ] as const;
+
+const POSTPROXY_PLAN_PRICES: Record<string, number> = {
+  build: 17,
+  grow: 49,
+  scale: 99,
+  enterprise: 699,
+};
 
 const PREFERENCE_KEYS = [
   'PREF_NOTIF_ERRORS',
@@ -329,7 +337,10 @@ export class SettingsService {
     } catch {}
     const ensembleCost = edUnits * edUnitPrice;
 
-    const postproxyCost = 0;
+    const ppPlanRow = await this.prisma.setting.findUnique({
+      where: { key: 'POSTPROXY_PLAN' },
+    });
+    const postproxyCost = POSTPROXY_PLAN_PRICES[ppPlanRow?.value ?? 'build'] ?? 17;
 
     const items = [
       { name: 'Postproxy', amount: postproxyCost },
