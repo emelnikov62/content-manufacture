@@ -24,7 +24,7 @@ const NETWORKS = [
   { value: 'TIKTOK', label: 'TikTok', color: '#111315', connect: 'oauth' as const },
   { value: 'THREADS', label: 'Threads', color: '#111315', soon: true },
   { value: 'FACEBOOK', label: 'Facebook', color: '#1877F2', soon: true },
-  { value: 'TWITTER', label: 'X (Twitter)', color: '#111315', soon: true },
+  { value: 'TWITTER', label: 'X (Twitter)', color: '#111315', connect: 'oauth' as const },
 ];
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; label: string; pill: string }> = {
@@ -171,7 +171,7 @@ export default function AccountsPage() {
     );
   }
 
-  const connectedNetworks = ['TELEGRAM', 'INSTAGRAM', 'TIKTOK'] as const;
+  const connectedNetworks = ['TELEGRAM', 'INSTAGRAM', 'TIKTOK', 'TWITTER'] as const;
   const accountsByNetwork = connectedNetworks.map((net) => ({
     network: NETWORKS.find((n) => n.value === net)!,
     accounts: accounts.filter((a) => a.network === net),
