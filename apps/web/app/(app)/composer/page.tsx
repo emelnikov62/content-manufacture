@@ -70,6 +70,7 @@ export default function ComposerPage() {
   const [rewriteOpen, setRewriteOpen] = useState(false);
   const [rewriteNetwork, setRewriteNetwork] = useState<string | null>(null);
   const [rewriteLoading, setRewriteLoading] = useState(false);
+  const [previewNet, setPreviewNet] = useState<string | null>(null);
 
   const { data: existingPost } = useQuery<any>({
     queryKey: ['post', editId],
@@ -363,9 +364,11 @@ export default function ComposerPage() {
     }
   }
 
-  const previewNetwork = selectedNetworks[0];
-  const previewMeta = previewNetwork ? NETWORK_META[previewNetwork] : null;
-  const previewAccount = accounts.find((a) => selectedAccounts.includes(a.id));
+  const activePreviewNet = previewNet && selectedNetworks.includes(previewNet) ? previewNet : selectedNetworks[0] ?? null;
+  const previewMeta = activePreviewNet ? NETWORK_META[activePreviewNet] : null;
+  const previewAccount = activePreviewNet
+    ? accounts.find((a) => selectedAccounts.includes(a.id) && a.network === activePreviewNet)
+    : accounts.find((a) => selectedAccounts.includes(a.id));
 
   if (!currentBrandId) {
     return (
@@ -714,13 +717,41 @@ export default function ComposerPage() {
         <div className="flex flex-col gap-[18px]">
           {/* Preview */}
           <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
-            <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
-              Превью{previewMeta ? ` · ${previewMeta.label}` : ''}
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                Превью
+              </span>
+              {selectedNetworks.length > 0 && (
+                <div className="flex items-center gap-1 ml-auto">
+                  {selectedNetworks.map((net) => {
+                    const meta = NETWORK_META[net];
+                    if (!meta) return null;
+                    const isActive = net === activePreviewNet;
+                    return (
+                      <button
+                        key={net}
+                        onClick={() => setPreviewNet(net)}
+                        className={`w-[28px] h-[28px] rounded-lg grid place-items-center transition-all ${
+                          isActive
+                            ? 'ring-2 ring-ring shadow-card'
+                            : 'opacity-50 hover:opacity-80'
+                        }`}
+                        style={{ background: typeof meta.color === 'string' && meta.color.startsWith('linear') ? meta.color : meta.color }}
+                        title={meta.label}
+                      >
+                        <NetworkIcon network={net} className="w-[14px] h-[14px] text-white" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             {previewAccount ? (
               <div className="bg-card border border-border rounded-xl overflow-hidden">
                 <div className="flex items-center gap-2 p-2.5">
-                  <div className="w-[28px] h-[28px] rounded-full bg-gradient-to-br from-amber-400 to-amber-800" />
+                  <div className="w-[28px] h-[28px] rounded-full grid place-items-center text-white text-[12px]" style={{ background: previewMeta?.color ?? '#333' }}>
+                    <NetworkIcon network={previewAccount.network} className="w-[14px] h-[14px]" />
+                  </div>
                   <span className="text-[12.5px] font-bold">@{previewAccount.handle}</span>
                 </div>
                 {selectedAssets.length > 0 ? (
@@ -760,9 +791,9 @@ export default function ComposerPage() {
                 ) : (
                   <div className="h-[150px]" style={{ background: 'linear-gradient(135deg,#cda472,#6e4a28)' }} />
                 )}
-                <div className="p-2.5 text-[12.5px]">
+                <div className="p-2.5 text-[12.5px] whitespace-pre-wrap break-words">
                   <span className="font-bold">{previewAccount.handle}</span>{' '}
-                  {body.slice(0, 120) || 'Текст поста…'}
+                  {body || 'Текст поста…'}
                 </div>
               </div>
             ) : (

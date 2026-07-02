@@ -141,6 +141,11 @@ export default function StudioPage() {
   const elementFileRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const addNotification = useAppStore((s) => s.addNotification);
   const prevProcessingIds = useRef(new Set<string>());
+  const [budget, setBudget] = useState<{ total: number; limit: number } | null>(null);
+
+  useEffect(() => {
+    api.get<{ total: number; limit: number }>('/settings/budget').then(setBudget).catch(() => {});
+  }, []);
 
   const models = MODELS[tab] || [];
   const currentModel = models[selectedModel] || models[0];
@@ -187,6 +192,11 @@ export default function StudioPage() {
       prevProcessingIds.current = newProcessingIds;
 
       setGenerations(data);
+
+      const hasNewCompleted = data.some((g) => prevIds.has(g.id) && g.status === 'COMPLETED');
+      if (hasNewCompleted) {
+        api.get<{ total: number; limit: number }>('/settings/budget').then(setBudget).catch(() => {});
+      }
     } catch {
       // silent
     }
@@ -480,7 +490,7 @@ export default function StudioPage() {
         </div>
         <div className="ml-auto">
           <span className="pill-status pill-draft" style={{ alignSelf: 'center' }}>
-            Бюджет: $0 / $300
+            Бюджет: ${budget?.total?.toFixed(2) ?? '0.00'} / ${budget?.limit ?? 300}
           </span>
         </div>
       </div>

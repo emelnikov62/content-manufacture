@@ -44,6 +44,20 @@ export class AccountsController {
     );
   }
 
+  @Post('connect/oauth')
+  connectOAuth(
+    @Body() body: { platform: string; redirectUrl: string },
+  ) {
+    return this.accountsService.initOAuthConnection(body.platform, body.redirectUrl);
+  }
+
+  @Post('connect/oauth/complete')
+  completeOAuth(
+    @Body() body: { brandId: string; platform: string },
+  ) {
+    return this.accountsService.completeOAuthConnection(body.brandId, body.platform);
+  }
+
   @Get(':id/placements')
   getPlacements(@Param('id') id: string) {
     return this.accountsService.getPlacements(id);

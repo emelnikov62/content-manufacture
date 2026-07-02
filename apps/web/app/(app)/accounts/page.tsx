@@ -19,12 +19,12 @@ import { toast } from 'sonner';
 import { NetworkIcon } from '@/components/icons/network-icon';
 
 const NETWORKS = [
-  { value: 'TELEGRAM', label: 'Telegram', icon: '✈️', color: '#2AABEE' },
-  { value: 'INSTAGRAM', label: 'Instagram', icon: '📷', color: '#E4405F', soon: true },
-  { value: 'TIKTOK', label: 'TikTok', icon: '🎵', color: '#111315', soon: true },
-  { value: 'THREADS', label: 'Threads', icon: '🧵', color: '#111315', soon: true },
-  { value: 'FACEBOOK', label: 'Facebook', icon: '📘', color: '#1877F2', soon: true },
-  { value: 'TWITTER', label: 'X (Twitter)', icon: '𝕏', color: '#111315', soon: true },
+  { value: 'TELEGRAM', label: 'Telegram', color: '#2AABEE', connect: 'token' as const },
+  { value: 'INSTAGRAM', label: 'Instagram', color: '#E4405F', connect: 'oauth' as const },
+  { value: 'TIKTOK', label: 'TikTok', color: '#111315', connect: 'oauth' as const },
+  { value: 'THREADS', label: 'Threads', color: '#111315', soon: true },
+  { value: 'FACEBOOK', label: 'Facebook', color: '#1877F2', soon: true },
+  { value: 'TWITTER', label: 'X (Twitter)', color: '#111315', soon: true },
 ];
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; label: string; pill: string }> = {
@@ -59,7 +59,8 @@ export default function AccountsPage() {
 
   // Connect modal state
   const [showConnect, setShowConnect] = useState(false);
-  const [connectStep, setConnectStep] = useState<'network' | 'token' | 'connecting' | 'done'>('network');
+  const [connectStep, setConnectStep] = useState<'network' | 'token' | 'oauth' | 'connecting' | 'done'>('network');
+  const [selectedNetwork, setSelectedNetwork] = useState('');
   const [botToken, setBotToken] = useState('');
   const [connectError, setConnectError] = useState('');
   const [connectedAccount, setConnectedAccount] = useState<Account | null>(null);
@@ -86,6 +87,7 @@ export default function AccountsPage() {
   const openConnect = () => {
     setShowConnect(true);
     setConnectStep('network');
+    setSelectedNetwork('');
     setBotToken('');
     setConnectError('');
     setConnectedAccount(null);
@@ -107,6 +109,43 @@ export default function AccountsPage() {
     } catch (err: any) {
       setConnectError(err?.message || 'Ошибка подключения');
       setConnectStep('token');
+    }
+  };
+
+  const handleConnectOAuth = async (platform: string) => {
+    setSelectedNetwork(platform);
+    setConnectStep('oauth');
+    setConnectError('');
+    try {
+      const redirectUrl = `${window.location.origin}/accounts`;
+      const res = await api.post<{ url: string }>('/accounts/connect/oauth', {
+        platform,
+        redirectUrl,
+      });
+      window.open(res.url, '_blank', 'width=600,height=700');
+    } catch (err: any) {
+      setConnectError(err?.message || 'Ошибка получения ссылки авторизации');
+      setConnectStep('network');
+    }
+  };
+
+  const handleOAuthComplete = async () => {
+    if (!currentBrandId || !selectedNetwork) return;
+    setConnectStep('connecting');
+    setConnectError('');
+    try {
+      const res = await api.post<{ account: Account }>('/accounts/connect/oauth/complete', {
+        brandId: currentBrandId,
+        platform: selectedNetwork,
+      });
+      setConnectedAccount(res.account);
+      setConnectStep('done');
+      queryClient.invalidateQueries({ queryKey: ['accounts'] });
+      const net = NETWORKS.find((n) => n.value === selectedNetwork);
+      toast.success(`${net?.label ?? selectedNetwork} подключён!`);
+    } catch (err: any) {
+      setConnectError(err?.message || 'Профиль не найден. Попробуйте снова.');
+      setConnectStep('oauth');
     }
   };
 
@@ -132,8 +171,12 @@ export default function AccountsPage() {
     );
   }
 
-  const telegramAccounts = accounts.filter((a) => a.network === 'TELEGRAM');
-  const otherAccounts = accounts.filter((a) => a.network !== 'TELEGRAM');
+  const connectedNetworks = ['TELEGRAM', 'INSTAGRAM', 'TIKTOK'] as const;
+  const accountsByNetwork = connectedNetworks.map((net) => ({
+    network: NETWORKS.find((n) => n.value === net)!,
+    accounts: accounts.filter((a) => a.network === net),
+  }));
+  const otherAccounts = accounts.filter((a) => !connectedNetworks.includes(a.network as any));
 
   return (
     <div className="flex flex-col gap-[18px]">
@@ -158,113 +201,125 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      {/* Telegram section */}
-      <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-[32px] h-[32px] rounded-lg grid place-items-center text-white text-[14px]" style={{ background: '#2AABEE' }}>
-            <NetworkIcon network="TELEGRAM" className="w-[18px] h-[18px]" />
+      {/* Network sections */}
+      {accountsByNetwork.map(({ network: net, accounts: netAccounts }) => (
+        <div key={net.value} className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-[32px] h-[32px] rounded-lg grid place-items-center text-white text-[14px]" style={{ background: net.color }}>
+              <NetworkIcon network={net.value} className="w-[18px] h-[18px]" />
+            </div>
+            <span className="font-bold text-[15px]">{net.label}</span>
+            <span className="text-[11px] text-muted-foreground">
+              {net.connect === 'token' ? 'BYO-бот через PostProxy' : 'OAuth через PostProxy'}
+            </span>
           </div>
-          <span className="font-bold text-[15px]">Telegram</span>
-          <span className="text-[11px] text-muted-foreground">BYO-бот через PostProxy</span>
-        </div>
 
-        {telegramAccounts.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-8">
-            <Send className="h-10 w-10 text-muted-foreground" />
-            <p className="text-[13.5px] text-muted-foreground text-center">
-              Нет подключённых Telegram-ботов
-            </p>
-            <button
-              className="inline-flex items-center gap-2 bg-[#2AABEE] text-white font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-90 transition-all"
-              onClick={() => {
-                openConnect();
-                setConnectStep('token');
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              Подключить бота
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {telegramAccounts.map((acc) => {
-              const cfg = STATUS_CONFIG[acc.status] || STATUS_CONFIG.DISCONNECTED;
-              const isExpanded = placementsAccountId === acc.id;
-              return (
-                <div key={acc.id} className="border border-border rounded-xl overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="w-[28px] h-[28px] rounded-lg grid place-items-center text-white text-[12px] shrink-0" style={{ background: '#2AABEE' }}>
-                      <NetworkIcon network="TELEGRAM" className="w-[18px] h-[18px]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="font-semibold text-[13.5px]">@{acc.handle}</span>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        Profile: {acc.postproxyProfileId}
-                      </p>
-                    </div>
-                    <span className={`pill-status ${cfg.pill}`}>
-                      <span className="pill-dot" />
-                      {cfg.label}
-                    </span>
-                    <button
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => isExpanded ? setPlacementsAccountId(null) : loadPlacements(acc.id)}
-                      title="Каналы"
-                    >
-                      <Hash className="h-4 w-4" />
-                    </button>
-                    <button
-                      className="text-muted-foreground hover:text-destructive transition-colors"
-                      onClick={() => {
-                        if (confirm('Отключить этот аккаунт?')) deleteMutation.mutate(acc.id);
-                      }}
-                      title="Отключить"
-                    >
-                      <Unlink className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {/* Placements / channels */}
-                  {isExpanded && (
-                    <div className="border-t border-border px-4 py-3 bg-secondary/30">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[12px] font-bold text-muted-foreground">Каналы</span>
-                        <button
-                          onClick={() => loadPlacements(acc.id)}
-                          className="text-muted-foreground hover:text-foreground"
-                          title="Обновить"
-                        >
-                          <RefreshCw className={`h-3.5 w-3.5 ${loadingPlacements ? 'animate-spin' : ''}`} />
-                        </button>
+          {netAccounts.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <NetworkIcon network={net.value} className="w-10 h-10 text-muted-foreground" />
+              <p className="text-[13.5px] text-muted-foreground text-center">
+                Нет подключённых аккаунтов {net.label}
+              </p>
+              <button
+                className="inline-flex items-center gap-2 text-white font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-90 transition-all"
+                style={{ background: net.color }}
+                onClick={() => {
+                  openConnect();
+                  setSelectedNetwork(net.value);
+                  if (net.connect === 'oauth') {
+                    handleConnectOAuth(net.value);
+                  } else {
+                    setConnectStep('token');
+                  }
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Подключить
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {netAccounts.map((acc) => {
+                const cfg = STATUS_CONFIG[acc.status] || STATUS_CONFIG.DISCONNECTED;
+                const isExpanded = placementsAccountId === acc.id;
+                return (
+                  <div key={acc.id} className="border border-border rounded-xl overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div className="w-[28px] h-[28px] rounded-lg grid place-items-center text-white text-[12px] shrink-0" style={{ background: net.color }}>
+                        <NetworkIcon network={net.value} className="w-[18px] h-[18px]" />
                       </div>
-                      {loadingPlacements ? (
-                        <div className="flex items-center gap-2 py-3 text-[12px] text-muted-foreground">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Загрузка…
-                        </div>
-                      ) : placements.length === 0 ? (
-                        <p className="text-[12px] text-muted-foreground py-2">
-                          Нет каналов. Добавьте бота как администратора в канал и обновите список.
+                      <div className="flex-1 min-w-0">
+                        <span className="font-semibold text-[13.5px]">@{acc.handle}</span>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          Profile: {acc.postproxyProfileId}
                         </p>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          {placements.map((p) => (
-                            <div key={p.id} className="flex items-center gap-2.5 bg-card rounded-lg px-3 py-2 border border-border">
-                              <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className="text-[12.5px] font-semibold">{p.name || p.username || p.id}</span>
-                              <span className="text-[11px] text-muted-foreground ml-auto font-mono">{p.id}</span>
-                            </div>
-                          ))}
-                        </div>
+                      </div>
+                      <span className={`pill-status ${cfg.pill}`}>
+                        <span className="pill-dot" />
+                        {cfg.label}
+                      </span>
+                      {net.value === 'TELEGRAM' && (
+                        <button
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => isExpanded ? setPlacementsAccountId(null) : loadPlacements(acc.id)}
+                          title="Каналы"
+                        >
+                          <Hash className="h-4 w-4" />
+                        </button>
                       )}
+                      <button
+                        className="text-muted-foreground hover:text-destructive transition-colors"
+                        onClick={() => {
+                          if (confirm('Отключить этот аккаунт?')) deleteMutation.mutate(acc.id);
+                        }}
+                        title="Отключить"
+                      >
+                        <Unlink className="h-4 w-4" />
+                      </button>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+
+                    {/* Placements / channels (Telegram only) */}
+                    {isExpanded && net.value === 'TELEGRAM' && (
+                      <div className="border-t border-border px-4 py-3 bg-secondary/30">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[12px] font-bold text-muted-foreground">Каналы</span>
+                          <button
+                            onClick={() => loadPlacements(acc.id)}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Обновить"
+                          >
+                            <RefreshCw className={`h-3.5 w-3.5 ${loadingPlacements ? 'animate-spin' : ''}`} />
+                          </button>
+                        </div>
+                        {loadingPlacements ? (
+                          <div className="flex items-center gap-2 py-3 text-[12px] text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Загрузка…
+                          </div>
+                        ) : placements.length === 0 ? (
+                          <p className="text-[12px] text-muted-foreground py-2">
+                            Нет каналов. Добавьте бота как администратора в канал и обновите список.
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            {placements.map((p) => (
+                              <div key={p.id} className="flex items-center gap-2.5 bg-card rounded-lg px-3 py-2 border border-border">
+                                <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-[12.5px] font-semibold">{p.name || p.username || p.id}</span>
+                                <span className="text-[11px] text-muted-foreground ml-auto font-mono">{p.id}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
 
       {/* Other networks */}
       {otherAccounts.length > 0 && (
@@ -327,7 +382,10 @@ export default function AccountsPage() {
             {/* Header */}
             <div className="flex items-center gap-2 px-5 py-4 border-b border-border">
               <span className="font-bold text-[15px]">
-                {connectStep === 'network' ? 'Выберите сеть' : 'Подключить Telegram'}
+                {connectStep === 'network' ? 'Выберите сеть' :
+                 connectStep === 'oauth' ? `Подключить ${NETWORKS.find((n) => n.value === selectedNetwork)?.label ?? ''}` :
+                 connectStep === 'token' ? 'Подключить Telegram' :
+                 connectStep === 'done' ? 'Готово' : 'Подключение…'}
               </span>
               <button onClick={() => setShowConnect(false)} className="ml-auto text-muted-foreground hover:text-foreground text-lg">✕</button>
             </div>
@@ -336,23 +394,37 @@ export default function AccountsPage() {
               {/* Step: select network */}
               {connectStep === 'network' && (
                 <div className="flex flex-col gap-2">
-                  {NETWORKS.map((n) => (
-                    <button
-                      key={n.value}
-                      disabled={n.soon}
-                      onClick={() => !n.soon && setConnectStep('token')}
-                      className={`flex items-center gap-3 rounded-xl border border-border px-4 py-3 transition-colors ${
-                        n.soon ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'
-                      }`}
-                    >
-                      <div className="w-[32px] h-[32px] rounded-lg grid place-items-center text-white text-[14px]" style={{ background: n.color }}>
-                        <NetworkIcon network={n.value} className="w-[14px] h-[14px]" />
-                      </div>
-                      <span className="font-semibold text-[13.5px]">{n.label}</span>
-                      {n.soon && <span className="ml-auto text-[11px] text-muted-foreground">Скоро</span>}
-                      {!n.soon && <span className="ml-auto text-[11px] text-muted-foreground">BYO-бот</span>}
-                    </button>
-                  ))}
+                  {NETWORKS.map((n) => {
+                    const alreadyConnected = accounts.some((a) => a.network === n.value);
+                    const isDisabled = !!n.soon || alreadyConnected;
+                    return (
+                      <button
+                        key={n.value}
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (isDisabled) return;
+                          setSelectedNetwork(n.value);
+                          if (n.connect === 'oauth') {
+                            handleConnectOAuth(n.value);
+                          } else {
+                            setConnectStep('token');
+                          }
+                        }}
+                        className={`flex items-center gap-3 rounded-xl border border-border px-4 py-3 transition-colors ${
+                          isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-secondary'
+                        }`}
+                      >
+                        <div className="w-[32px] h-[32px] rounded-lg grid place-items-center text-white text-[14px]" style={{ background: n.color }}>
+                          <NetworkIcon network={n.value} className="w-[14px] h-[14px]" />
+                        </div>
+                        <span className="font-semibold text-[13.5px]">{n.label}</span>
+                        {n.soon && <span className="ml-auto text-[11px] text-muted-foreground">Скоро</span>}
+                        {alreadyConnected && <span className="ml-auto text-[11px] text-muted-foreground">Подключено</span>}
+                        {!n.soon && !alreadyConnected && n.connect === 'token' && <span className="ml-auto text-[11px] text-muted-foreground">BYO-бот</span>}
+                        {!n.soon && !alreadyConnected && n.connect === 'oauth' && <span className="ml-auto text-[11px] text-muted-foreground">OAuth</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -393,6 +465,40 @@ export default function AccountsPage() {
                 </div>
               )}
 
+              {/* Step: OAuth waiting */}
+              {connectStep === 'oauth' && (
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <div className="w-[56px] h-[56px] rounded-2xl grid place-items-center" style={{ background: `${NETWORKS.find((n) => n.value === selectedNetwork)?.color}15` }}>
+                      <NetworkIcon network={selectedNetwork} className="w-8 h-8" />
+                    </div>
+                    <p className="text-[13.5px] text-center text-muted-foreground">
+                      Откроется окно авторизации PostProxy.<br />
+                      Войдите в аккаунт и подтвердите доступ.
+                    </p>
+                  </div>
+                  {connectError && (
+                    <div className="bg-destructive/10 border border-destructive/30 rounded-lg px-3 py-2">
+                      <p className="text-[12px] text-destructive">{connectError}</p>
+                    </div>
+                  )}
+                  <button
+                    onClick={handleOAuthComplete}
+                    className="w-full bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all inline-flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Я авторизовался
+                  </button>
+                  <button
+                    onClick={() => handleConnectOAuth(selectedNetwork)}
+                    className="w-full text-[13px] text-muted-foreground hover:text-foreground transition-colors inline-flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Открыть окно снова
+                  </button>
+                </div>
+              )}
+
               {/* Step: connecting */}
               {connectStep === 'connecting' && (
                 <div className="flex flex-col items-center gap-3 py-8">
@@ -404,19 +510,21 @@ export default function AccountsPage() {
               {/* Step: done */}
               {connectStep === 'done' && connectedAccount && (
                 <div className="flex flex-col items-center gap-4 py-4">
-                  <div className="w-[56px] h-[56px] rounded-2xl bg-[#2AABEE]/10 grid place-items-center">
-                    <CheckCircle2 className="h-8 w-8 text-[#2AABEE]" />
+                  <div className="w-[56px] h-[56px] rounded-2xl grid place-items-center" style={{ background: `${NETWORKS.find((n) => n.value === connectedAccount.network)?.color ?? '#333'}15` }}>
+                    <CheckCircle2 className="h-8 w-8" style={{ color: NETWORKS.find((n) => n.value === connectedAccount.network)?.color }} />
                   </div>
                   <div className="text-center">
-                    <p className="font-bold text-[15px]">Бот подключён!</p>
+                    <p className="font-bold text-[15px]">Аккаунт подключён!</p>
                     <p className="text-[13px] text-muted-foreground mt-1">@{connectedAccount.handle}</p>
                   </div>
-                  <div className="bg-secondary/50 rounded-xl px-4 py-3 w-full">
-                    <p className="text-[12px] text-muted-foreground leading-relaxed">
-                      Теперь добавьте бота как <strong className="text-foreground">администратора</strong> в нужные Telegram-каналы.
-                      После этого каналы появятся в списке плейсментов.
-                    </p>
-                  </div>
+                  {connectedAccount.network === 'TELEGRAM' && (
+                    <div className="bg-secondary/50 rounded-xl px-4 py-3 w-full">
+                      <p className="text-[12px] text-muted-foreground leading-relaxed">
+                        Теперь добавьте бота как <strong className="text-foreground">администратора</strong> в нужные Telegram-каналы.
+                        После этого каналы появятся в списке плейсментов.
+                      </p>
+                    </div>
+                  )}
                   <button
                     onClick={() => setShowConnect(false)}
                     className="w-full bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all"

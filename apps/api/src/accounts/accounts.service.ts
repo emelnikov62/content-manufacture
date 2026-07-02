@@ -123,6 +123,56 @@ export class AccountsService {
     return { account, profile };
   }
 
+  // ── PostProxy: OAuth Connect (Instagram, TikTok, etc.) ──
+
+  async initOAuthConnection(platform: string, redirectUrl: string) {
+    const groups = await this.getProfileGroups();
+    const groupId = groups[0]?.id;
+    if (!groupId) throw new BadRequestException('Нет profile group в PostProxy');
+
+    const res = await this.ppRequest<any>(
+      'POST',
+      `/api/profile_groups/${groupId}/initialize_connection`,
+      { platform: platform.toLowerCase(), redirect_url: redirectUrl },
+    );
+
+    if (!res.url) throw new BadRequestException('PostProxy не вернул URL авторизации');
+    return { url: res.url };
+  }
+
+  async completeOAuthConnection(brandId: string, platform: string) {
+    const profiles = await this.getProfiles();
+    const platformLower = platform.toLowerCase();
+
+    const existing = await this.prisma.account.findMany({
+      where: { brandId },
+      select: { postproxyProfileId: true },
+    });
+    const existingIds = new Set(existing.map((a) => a.postproxyProfileId));
+
+    const newProfile = profiles.find(
+      (p: any) => p.platform === platformLower && !existingIds.has(p.id),
+    );
+
+    if (!newProfile) {
+      throw new BadRequestException(
+        'Новый профиль не найден. Убедитесь, что авторизация завершена.',
+      );
+    }
+
+    const account = await this.prisma.account.create({
+      data: {
+        brandId,
+        network: platform.toUpperCase() as any,
+        postproxyProfileId: newProfile.id,
+        handle: newProfile.external_username || newProfile.name || platform,
+        status: 'CONNECTED',
+      },
+    });
+
+    return { account, profile: newProfile };
+  }
+
   // ── PostProxy: Placements (channels) ──
 
   async getPlacements(accountId: string): Promise<any[]> {
