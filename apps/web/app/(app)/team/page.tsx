@@ -208,7 +208,7 @@ export default function TeamPage() {
             />
             <Select value={role} onValueChange={(v) => v && setRole(v)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{(v: string) => ROLE_CONFIG[v]?.label ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="MANAGER">Менеджер</SelectItem>
@@ -245,7 +245,7 @@ export default function TeamPage() {
             </div>
             <Select value={editRole} onValueChange={(v) => v && setEditRole(v)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{(v: string) => ROLE_CONFIG[v]?.label ?? v}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="MANAGER">Менеджер</SelectItem>

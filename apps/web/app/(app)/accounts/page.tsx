@@ -22,9 +22,17 @@ const NETWORKS = [
   { value: 'TELEGRAM', label: 'Telegram', color: '#2AABEE', connect: 'token' as const },
   { value: 'INSTAGRAM', label: 'Instagram', color: '#E4405F', connect: 'oauth' as const },
   { value: 'TIKTOK', label: 'TikTok', color: '#111315', connect: 'oauth' as const },
-  { value: 'THREADS', label: 'Threads', color: '#111315', soon: true },
-  { value: 'FACEBOOK', label: 'Facebook', color: '#1877F2', soon: true },
+  { value: 'THREADS', label: 'Threads', color: '#111315', connect: 'oauth' as const },
+  { value: 'FACEBOOK', label: 'Facebook', color: '#1877F2', connect: 'oauth' as const },
   { value: 'TWITTER', label: 'X (Twitter)', color: '#111315', connect: 'oauth' as const },
+  { value: 'YOUTUBE', label: 'YouTube', color: '#FF0000', soon: true },
+  { value: 'LINKEDIN', label: 'LinkedIn', color: '#0A66C2', soon: true },
+  { value: 'PINTEREST', label: 'Pinterest', color: '#E60023', soon: true },
+  { value: 'SNAPCHAT', label: 'Snapchat', color: '#FFFC00', soon: true },
+  { value: 'VK', label: 'ВКонтакте', color: '#0077FF', soon: true },
+  { value: 'OK', label: 'Одноклассники', color: '#EE8208', soon: true },
+  { value: 'WHATSAPP', label: 'WhatsApp', color: '#25D366', soon: true },
+  { value: 'REDDIT', label: 'Reddit', color: '#FF4500', soon: true },
 ];
 
 const STATUS_CONFIG: Record<string, { icon: typeof CheckCircle2; label: string; pill: string }> = {
@@ -171,7 +179,7 @@ export default function AccountsPage() {
     );
   }
 
-  const connectedNetworks = ['TELEGRAM', 'INSTAGRAM', 'TIKTOK', 'TWITTER'] as const;
+  const connectedNetworks = ['TELEGRAM', 'INSTAGRAM', 'TIKTOK', 'TWITTER', 'FACEBOOK', 'THREADS'] as const;
   const accountsByNetwork = connectedNetworks.map((net) => ({
     network: NETWORKS.find((n) => n.value === net)!,
     accounts: accounts.filter((a) => a.network === net),
