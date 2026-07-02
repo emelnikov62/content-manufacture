@@ -30,7 +30,6 @@ const INTEGRATIONS = [
     icon: '◍',
     fields: [
       { key: 'POSTPROXY_API_KEY', label: 'API Key' },
-      { key: 'POSTPROXY_WEBHOOK_SECRET', label: 'Webhook Secret' },
       {
         key: 'POSTPROXY_PLAN',
         label: 'Тарифный план',
@@ -59,7 +58,6 @@ const INTEGRATIONS = [
     icon: '▥',
     fields: [
       { key: 'ENSEMBLE_DATA_API_KEY', label: 'API Key' },
-      { key: 'ENSEMBLE_DATA_UNIT_PRICE', label: 'Цена за юнит ($)', secret: false },
     ],
   },
   {
