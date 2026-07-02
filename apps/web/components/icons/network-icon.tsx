@@ -1,16 +1,23 @@
 import { TelegramIcon } from './telegram';
+import { InstagramIcon } from './instagram';
+import { TiktokIcon } from './tiktok';
+import { ThreadsIcon } from './threads';
+import { FacebookIcon } from './facebook';
+import { TwitterIcon } from './twitter';
+import { YoutubeIcon } from './youtube';
 
-const EMOJI_ICONS: Record<string, string> = {
-  INSTAGRAM: '📷',
-  TIKTOK: '🎵',
-  THREADS: '🧵',
-  FACEBOOK: '📘',
-  TWITTER: '𝕏',
+const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
+  TELEGRAM: TelegramIcon,
+  INSTAGRAM: InstagramIcon,
+  TIKTOK: TiktokIcon,
+  THREADS: ThreadsIcon,
+  FACEBOOK: FacebookIcon,
+  TWITTER: TwitterIcon,
+  YOUTUBE: YoutubeIcon,
 };
 
 export function NetworkIcon({ network, className }: { network: string; className?: string }) {
-  if (network === 'TELEGRAM') {
-    return <TelegramIcon className={className || 'w-[1em] h-[1em] inline'} />;
-  }
-  return <span className={className}>{EMOJI_ICONS[network] || '🌐'}</span>;
+  const Icon = ICON_MAP[network];
+  if (Icon) return <Icon className={className || 'w-[1em] h-[1em] inline'} />;
+  return <span className={className}>🌐</span>;
 }

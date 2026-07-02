@@ -6,6 +6,21 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { NetworkIcon } from '@/components/icons/network-icon';
 
+const NICHES = [
+  { key: 'cooking', emoji: '🍳', label: 'Кулинария', hashtags: ['cooking', 'recipe', 'food', 'easyrecipe'] },
+  { key: 'fitness', emoji: '💪', label: 'Фитнес', hashtags: ['fitness', 'workout', 'gym', 'fitnessmotivation'] },
+  { key: 'beauty', emoji: '💄', label: 'Красота', hashtags: ['beauty', 'makeup', 'skincare', 'beautytips'] },
+  { key: 'fashion', emoji: '👗', label: 'Мода', hashtags: ['fashion', 'outfit', 'style', 'ootd'] },
+  { key: 'travel', emoji: '✈️', label: 'Путешествия', hashtags: ['travel', 'wanderlust', 'traveldiaries', 'vacation'] },
+  { key: 'business', emoji: '💼', label: 'Бизнес', hashtags: ['business', 'entrepreneur', 'startup', 'marketing'] },
+  { key: 'tech', emoji: '📱', label: 'Технологии', hashtags: ['tech', 'gadgets', 'ai', 'programming'] },
+  { key: 'education', emoji: '📚', label: 'Образование', hashtags: ['education', 'learning', 'study', 'learnontiktok'] },
+  { key: 'pets', emoji: '🐱', label: 'Питомцы', hashtags: ['pets', 'dogsoftiktok', 'catsoftiktok', 'animals'] },
+  { key: 'humor', emoji: '😂', label: 'Юмор', hashtags: ['funny', 'comedy', 'humor', 'memes'] },
+  { key: 'music', emoji: '🎵', label: 'Музыка', hashtags: ['music', 'singer', 'cover', 'newmusic'] },
+  { key: 'diy', emoji: '🔨', label: 'DIY', hashtags: ['diy', 'crafts', 'lifehacks', 'howto'] },
+] as const;
+
 const PLATFORMS = [
   { key: 'tiktok', label: 'TikTok', network: 'TIKTOK', color: '#111315' },
   { key: 'instagram', label: 'Instagram', network: 'INSTAGRAM', color: 'linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)' },
@@ -21,6 +36,16 @@ const SEARCH_MODES = [
 ] as const;
 
 type SearchMode = (typeof SEARCH_MODES)[number]['key'];
+
+const SORT_OPTIONS = [
+  { key: 'relevant', label: 'Релевантность' },
+  { key: 'likes', label: 'По лайкам' },
+  { key: 'views', label: 'По просмотрам' },
+  { key: 'comments', label: 'По комментариям' },
+  { key: 'recent', label: 'Новые' },
+] as const;
+
+type SortKey = (typeof SORT_OPTIONS)[number]['key'];
 
 function formatNumber(n: number | undefined | null): string {
   if (n == null) return '—';
@@ -147,6 +172,9 @@ export default function TrendsPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>('relevant');
+  const [activeNiche, setActiveNiche] = useState<string | null>(null);
+  const [nicheLoading, setNicheLoading] = useState(false);
 
   const availableModes = (() => {
     if (platform === 'tiktok') return SEARCH_MODES.filter((m) => m.key !== 'user');
@@ -167,6 +195,46 @@ export default function TrendsPage() {
     if (!modes.includes(searchMode)) setSearchMode(modes[0] as SearchMode);
   };
 
+  const doNicheSearch = async (nicheKey: string) => {
+    const niche = NICHES.find((n) => n.key === nicheKey);
+    if (!niche) return;
+
+    setActiveNiche(nicheKey);
+    setNicheLoading(true);
+    setResults([]);
+    setHasSearched(false);
+    setNextCursor(null);
+
+    try {
+      const requests = niche.hashtags.map((tag) =>
+        api.get<any>(`/trends/tiktok/hashtag?name=${encodeURIComponent(tag)}&cursor=0`).catch(() => null),
+      );
+      const responses = await Promise.all(requests);
+
+      let allPosts: TrendResult[] = [];
+      for (const resp of responses) {
+        if (!resp) continue;
+        allPosts = allPosts.concat(parseTikTokResults(resp));
+      }
+
+      const seen = new Set<string>();
+      allPosts = allPosts.filter((p) => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      });
+
+      allPosts.sort((a, b) => ((b.views ?? 0) + (b.likes ?? 0)) - ((a.views ?? 0) + (a.likes ?? 0)));
+
+      setResults(allPosts);
+      setHasSearched(true);
+    } catch (err: any) {
+      toast.error(err?.message || 'Ошибка поиска');
+    } finally {
+      setNicheLoading(false);
+    }
+  };
+
   const doSearch = async (cursor?: string) => {
     if (!query.trim()) {
       toast.error('Введите запрос для поиска');
@@ -180,12 +248,15 @@ export default function TrendsPage() {
       let data: any;
       let parsed: TrendResult[] = [];
 
+      const ttSorting = sortBy === 'likes' ? '1' : sortBy === 'recent' ? '2' : '0';
+      const ytSorting = sortBy === 'views' ? 'view count' : sortBy === 'recent' ? 'upload time' : sortBy === 'likes' ? 'rating' : 'relevance';
+
       if (platform === 'tiktok') {
         if (searchMode === 'hashtag') {
           data = await api.get(`/trends/tiktok/hashtag?name=${encodeURIComponent(query.replace('#', ''))}&cursor=${cursor || '0'}`);
           parsed = parseTikTokResults(data);
         } else {
-          data = await api.get(`/trends/tiktok/keyword?name=${encodeURIComponent(query)}&cursor=${cursor || '0'}`);
+          data = await api.get(`/trends/tiktok/keyword?name=${encodeURIComponent(query)}&cursor=${cursor || '0'}&sorting=${ttSorting}`);
           parsed = parseTikTokResults(data);
         }
       } else if (platform === 'instagram') {
@@ -204,9 +275,22 @@ export default function TrendsPage() {
         if (searchMode === 'hashtag') {
           data = await api.get(`/trends/youtube/hashtag?name=${encodeURIComponent(query.replace('#', ''))}`);
         } else {
-          data = await api.get(`/trends/youtube/keyword?keyword=${encodeURIComponent(query)}`);
+          data = await api.get(`/trends/youtube/keyword?keyword=${encodeURIComponent(query)}&sorting=${encodeURIComponent(ytSorting)}`);
         }
         parsed = parseYouTubeResults(data);
+      }
+
+      if (sortBy !== 'relevant') {
+        const sortField = sortBy === 'likes' ? 'likes' : sortBy === 'views' ? 'views' : sortBy === 'comments' ? 'comments' : null;
+        if (sortField) {
+          parsed.sort((a, b) => ((b as any)[sortField] ?? 0) - ((a as any)[sortField] ?? 0));
+        } else if (sortBy === 'recent') {
+          parsed.sort((a, b) => {
+            const ta = typeof a.createdAt === 'number' ? a.createdAt : 0;
+            const tb = typeof b.createdAt === 'number' ? b.createdAt : 0;
+            return tb - ta;
+          });
+        }
       }
 
       const nc = data?.data?.nextCursor ?? data?.nextCursor ?? data?.next_cursor ?? null;
@@ -242,6 +326,36 @@ export default function TrendsPage() {
         </p>
       </div>
 
+      {/* Niches */}
+      <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
+        <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-3">
+          Топ по нишам · TikTok
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {NICHES.map((n) => (
+            <button
+              key={n.key}
+              onClick={() => doNicheSearch(n.key)}
+              disabled={nicheLoading}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12.5px] font-semibold border transition-colors disabled:opacity-50 ${
+                activeNiche === n.key
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border bg-card hover:bg-secondary'
+              }`}
+            >
+              <span className="text-[14px]">{n.emoji}</span>
+              {n.label}
+            </button>
+          ))}
+        </div>
+        {nicheLoading && (
+          <div className="flex items-center gap-2 mt-3 text-[12.5px] text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Ищем топовый контент…
+          </div>
+        )}
+      </div>
+
       {/* Search card */}
       <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
         {/* Platform tabs */}
@@ -267,8 +381,8 @@ export default function TrendsPage() {
           ))}
         </div>
 
-        {/* Search mode tabs */}
-        <div className="flex gap-1.5 mb-3">
+        {/* Search mode tabs + sorting */}
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
           {availableModes.map((m) => (
             <button
               key={m.key}
@@ -280,6 +394,20 @@ export default function TrendsPage() {
               }`}
             >
               {m.label}
+            </button>
+          ))}
+          <span className="w-px h-5 bg-border mx-1" />
+          {SORT_OPTIONS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSortBy(s.key)}
+              className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+                sortBy === s.key
+                  ? 'border-primary bg-primary/10 text-foreground'
+                  : 'border-border bg-card text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              {s.label}
             </button>
           ))}
         </div>
