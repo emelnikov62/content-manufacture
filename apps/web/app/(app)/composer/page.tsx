@@ -1003,7 +1003,7 @@ export default function ComposerPage() {
               Выберите социальную сеть, под которую нужно адаптировать текст:
             </p>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(NETWORK_META).map(([key, meta]) => (
+              {[...new Set(accounts.map((a) => a.network))].map((key) => [key, NETWORK_META[key]] as const).filter(([, meta]) => meta).map(([key, meta]) => (
                 <button
                   key={key}
                   onClick={() => setRewriteNetwork(key)}
