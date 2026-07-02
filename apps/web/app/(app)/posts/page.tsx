@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Pencil, Trash2, Send, Undo2 } from 'lucide-react';
@@ -58,6 +58,7 @@ interface Post {
 
 export default function PostsPage() {
   const currentBrandId = useAppStore((s) => s.currentBrandId);
+  const addNotification = useAppStore((s) => s.addNotification);
   const queryClient = useQueryClient();
   const [tab, setTab] = useState('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -86,8 +87,12 @@ export default function PostsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       toast.success('Пост перемещён в удалённые');
+      addNotification({ type: 'success', title: 'Пост удалён', message: 'Пост перемещён в удалённые' });
     },
-    onError: () => toast.error('Не удалось удалить пост'),
+    onError: () => {
+      toast.error('Не удалось удалить пост');
+      addNotification({ type: 'error', title: 'Ошибка', message: 'Не удалось удалить пост' });
+    },
   });
 
   const restoreMutation = useMutation({
@@ -95,8 +100,12 @@ export default function PostsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       toast.success('Пост восстановлен в черновики');
+      addNotification({ type: 'success', title: 'Пост восстановлен', message: 'Пост возвращён в черновики' });
     },
-    onError: () => toast.error('Не удалось восстановить пост'),
+    onError: () => {
+      toast.error('Не удалось восстановить пост');
+      addNotification({ type: 'error', title: 'Ошибка', message: 'Не удалось восстановить пост' });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -104,9 +113,31 @@ export default function PostsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       toast.success('Пост удалён навсегда');
+      addNotification({ type: 'success', title: 'Пост удалён', message: 'Пост удалён навсегда' });
     },
-    onError: () => toast.error('Не удалось удалить пост'),
+    onError: () => {
+      toast.error('Не удалось удалить пост');
+      addNotification({ type: 'error', title: 'Ошибка', message: 'Не удалось удалить пост' });
+    },
   });
+
+  const prevStatusMap = useRef<Record<string, string>>({});
+  useEffect(() => {
+    const prev = prevStatusMap.current;
+    const next: Record<string, string> = {};
+    for (const post of posts) {
+      next[post.id] = post.status;
+      const old = prev[post.id];
+      if (old === 'PUBLISHING' && post.status === 'PUBLISHED') {
+        toast.success('Пост опубликован');
+        addNotification({ type: 'success', title: 'Пост опубликован', message: post.title || 'Пост' });
+      } else if (old === 'PUBLISHING' && post.status === 'ERROR') {
+        toast.error('Ошибка публикации');
+        addNotification({ type: 'error', title: 'Ошибка публикации', message: post.title || 'Пост' });
+      }
+    }
+    prevStatusMap.current = next;
+  }, [posts, addNotification]);
 
   const isDeletedTab = tab === 'DELETED';
   const activePosts = isDeletedTab ? deletedPosts : posts;

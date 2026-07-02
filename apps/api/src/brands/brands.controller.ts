@@ -61,6 +61,16 @@ export class BrandsController {
     return this.brandsService.addMemberByEmail(id, body.email, body.role as any, userId);
   }
 
+  @Patch(':id/members/:memberId')
+  updateMember(
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+    @Body() body: { role: string },
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.brandsService.updateMemberRole(id, memberId, body.role as any, userId);
+  }
+
   @Delete(':id/members/:memberId')
   removeMember(
     @Param('id') id: string,

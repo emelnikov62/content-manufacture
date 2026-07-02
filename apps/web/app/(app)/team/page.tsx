@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserPlus, Trash2, Crown, Eye, Pencil, Shield } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -40,8 +41,11 @@ export default function TeamPage() {
   const queryClient = useQueryClient();
   const currentBrandId = useAppStore((s) => s.currentBrandId);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [editMember, setEditMember] = useState<Member | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('EDITOR');
+  const [editRole, setEditRole] = useState('EDITOR');
 
   const { data: members = [] } = useQuery<Member[]>({
     queryKey: ['team', currentBrandId],
@@ -59,10 +63,26 @@ export default function TeamPage() {
     },
   });
 
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ memberId, role }: { memberId: string; role: string }) =>
+      api.patch(`/brands/${currentBrandId}/members/${memberId}`, { role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+      setEditMember(null);
+      toast.success('Роль обновлена');
+    },
+    onError: () => toast.error('Не удалось обновить роль'),
+  });
+
   const removeMutation = useMutation({
     mutationFn: (memberId: string) =>
       api.delete(`/brands/${currentBrandId}/members/${memberId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['team'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team'] });
+      setDeleteId(null);
+      toast.success('Участник удалён');
+    },
+    onError: () => toast.error('Не удалось удалить участника'),
   });
 
   if (!currentBrandId) {
@@ -137,12 +157,22 @@ export default function TeamPage() {
                   </td>
                   <td className="py-[13px] px-3 border-t border-border text-right">
                     {member.role !== 'OWNER' && (
-                      <button
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                        onClick={() => removeMutation.mutate(member.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex gap-1.5 justify-end">
+                        <button
+                          className="h-8 w-8 rounded-lg hover:bg-foreground/10 flex items-center justify-center transition-colors"
+                          title="Редактировать"
+                          onClick={() => { setEditMember(member); setEditRole(member.role); }}
+                        >
+                          <Pencil className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                        <button
+                          className="h-8 w-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center transition-colors"
+                          title="Удалить"
+                          onClick={() => setDeleteId(member.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -195,6 +225,66 @@ export default function TeamPage() {
               Добавить
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editMember} onOpenChange={(open) => !open && setEditMember(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Изменить роль</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-[38px] h-[38px] rounded-full bg-gradient-to-br from-amber-400 to-amber-800 grid place-items-center text-white text-[12px] font-bold shrink-0">
+                {editMember?.name?.charAt(0)?.toUpperCase() || editMember?.email.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <span className="font-semibold text-[13px]">{editMember?.name || editMember?.email}</span>
+                <span className="block text-[12px] text-muted-foreground">{editMember?.email}</span>
+              </div>
+            </div>
+            <Select value={editRole} onValueChange={(v) => v && setEditRole(v)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MANAGER">Менеджер</SelectItem>
+                <SelectItem value="EDITOR">Контентщик</SelectItem>
+                <SelectItem value="VIEWER">Аналитик</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={() => editMember && updateRoleMutation.mutate({ memberId: editMember.id, role: editRole })}
+              disabled={updateRoleMutation.isPending || editRole === editMember?.role}
+            >
+              Сохранить
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить участника?</DialogTitle>
+          </DialogHeader>
+          <p className="text-[13px] text-muted-foreground">
+            Участник потеряет доступ к этому направлению. Это действие можно отменить, добавив его снова.
+          </p>
+          <div className="flex gap-2.5 mt-2">
+            <button
+              className="flex-1 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors"
+              onClick={() => setDeleteId(null)}
+            >
+              Отмена
+            </button>
+            <button
+              className="flex-1 font-bold text-[13px] rounded-xl px-4 py-2.5 bg-destructive text-destructive-foreground hover:brightness-90 transition-all"
+              onClick={() => { if (deleteId) removeMutation.mutate(deleteId); }}
+            >
+              Удалить
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

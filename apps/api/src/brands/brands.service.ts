@@ -60,6 +60,15 @@ export class BrandsService {
     });
   }
 
+  async updateMemberRole(brandId: string, targetUserId: string, role: Role, requesterId: string) {
+    await this.ensureAccess(brandId, requesterId, [Role.OWNER]);
+    return this.prisma.userBrand.update({
+      where: { userId_brandId: { userId: targetUserId, brandId } },
+      data: { role },
+      include: { user: { select: { id: true, name: true, email: true, avatarUrl: true } } },
+    });
+  }
+
   async removeMember(brandId: string, targetUserId: string, requesterId: string) {
     await this.ensureAccess(brandId, requesterId, [Role.OWNER]);
     return this.prisma.userBrand.delete({

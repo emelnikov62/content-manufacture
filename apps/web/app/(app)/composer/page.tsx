@@ -47,6 +47,7 @@ export default function ComposerPage() {
   const queryClient = useQueryClient();
   const currentBrandId = useAppStore((s) => s.currentBrandId);
   const accessToken = useAppStore((s) => s.accessToken);
+  const addNotification = useAppStore((s) => s.addNotification);
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -108,8 +109,12 @@ export default function ComposerPage() {
       queryClient.invalidateQueries({ queryKey: ['post', editId] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       toast.success('Удаление отменено');
+      addNotification({ type: 'success', title: 'Удаление отменено', message: title || 'Пост' });
     },
-    onError: () => toast.error('Не удалось отменить удаление'),
+    onError: () => {
+      toast.error('Не удалось отменить удаление');
+      addNotification({ type: 'error', title: 'Ошибка', message: 'Не удалось отменить удаление' });
+    },
   });
 
   const publishMutation = useMutation({
@@ -138,10 +143,12 @@ export default function ComposerPage() {
         : mode === 'schedule' ? 'Обновление запланировано'
         : 'Пост отправлен на публикацию';
       toast.success(msg);
+      addNotification({ type: 'success', title: msg, message: title || 'Пост' });
       if (mode !== 'draft') router.push('/posts');
     },
     onError: (err: any) => {
       toast.error(err?.message || 'Не удалось сохранить');
+      addNotification({ type: 'error', title: 'Ошибка', message: err?.message || 'Не удалось сохранить пост' });
     },
   });
 
