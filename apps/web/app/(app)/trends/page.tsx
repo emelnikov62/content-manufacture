@@ -187,6 +187,7 @@ export default function TrendsPage() {
     setResults([]);
     setHasSearched(false);
     setNextCursor(null);
+    setActiveNiche(null);
     const modes = p === 'tiktok'
       ? ['keyword', 'hashtag']
       : p === 'instagram'
@@ -206,15 +207,38 @@ export default function TrendsPage() {
     setNextCursor(null);
 
     try {
-      const requests = niche.hashtags.map((tag) =>
-        api.get<any>(`/trends/tiktok/hashtag?name=${encodeURIComponent(tag)}&cursor=0`).catch(() => null),
-      );
+      let requests: Promise<any>[];
+      let parser: (data: any) => TrendResult[];
+
+      let firstError: string | null = null;
+
+      if (platform === 'youtube') {
+        requests = niche.hashtags.map((tag) =>
+          api.get<any>(`/trends/youtube/hashtag?name=${encodeURIComponent(tag)}`).catch((e) => { if (!firstError) firstError = e?.message; return null; }),
+        );
+        parser = parseYouTubeResults;
+      } else if (platform === 'instagram') {
+        requests = niche.hashtags.map((tag) =>
+          api.get<any>(`/trends/instagram/search?text=${encodeURIComponent(tag)}`).catch((e) => { if (!firstError) firstError = e?.message; return null; }),
+        );
+        parser = parseInstagramSearch;
+      } else {
+        requests = niche.hashtags.map((tag) =>
+          api.get<any>(`/trends/tiktok/hashtag?name=${encodeURIComponent(tag)}&cursor=0`).catch((e) => { if (!firstError) firstError = e?.message; return null; }),
+        );
+        parser = parseTikTokResults;
+      }
+
       const responses = await Promise.all(requests);
 
       let allPosts: TrendResult[] = [];
       for (const resp of responses) {
         if (!resp) continue;
-        allPosts = allPosts.concat(parseTikTokResults(resp));
+        allPosts = allPosts.concat(parser(resp));
+      }
+
+      if (allPosts.length === 0 && firstError) {
+        toast.error(firstError);
       }
 
       const seen = new Set<string>();
@@ -328,8 +352,31 @@ export default function TrendsPage() {
 
       {/* Niches */}
       <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
+        {/* Platform tabs */}
+        <div className="flex gap-2 mb-4">
+          {PLATFORMS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => handlePlatformChange(p.key)}
+              className={`flex items-center gap-[7px] px-[11px] py-[7px] rounded-full text-[12.5px] font-semibold border transition-colors ${
+                platform === p.key
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border bg-card hover:bg-secondary'
+              }`}
+            >
+              <span
+                className="w-[20px] h-[20px] rounded-[6px] grid place-items-center text-white text-[10px] shrink-0"
+                style={{ background: p.color }}
+              >
+                <NetworkIcon network={p.network} className="w-[12px] h-[12px]" />
+              </span>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
         <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-3">
-          Топ по нишам · TikTok
+          Топ по нишам
         </div>
         <div className="flex gap-2 flex-wrap">
           {NICHES.map((n) => (
@@ -358,29 +405,6 @@ export default function TrendsPage() {
 
       {/* Search card */}
       <div className="bg-card border border-border rounded-[22px] shadow-card p-[18px]">
-        {/* Platform tabs */}
-        <div className="flex gap-2 mb-4">
-          {PLATFORMS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => handlePlatformChange(p.key)}
-              className={`flex items-center gap-[7px] px-[11px] py-[7px] rounded-full text-[12.5px] font-semibold border transition-colors ${
-                platform === p.key
-                  ? 'border-primary bg-primary/10'
-                  : 'border-border bg-card hover:bg-secondary'
-              }`}
-            >
-              <span
-                className="w-[20px] h-[20px] rounded-[6px] grid place-items-center text-white text-[10px] shrink-0"
-                style={{ background: p.color }}
-              >
-                <NetworkIcon network={p.network} className="w-[12px] h-[12px]" />
-              </span>
-              {p.label}
-            </button>
-          ))}
-        </div>
-
         {/* Search mode tabs + sorting */}
         <div className="flex items-center gap-1.5 mb-3 flex-wrap">
           {availableModes.map((m) => (

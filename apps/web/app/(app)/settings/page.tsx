@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, ChevronDown, Eye, EyeOff, Check, Save } from 'lucide-react';
+import { Loader2, ChevronDown, Eye, EyeOff, Check, Save, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { useAppStore } from '@/lib/store';
@@ -44,7 +45,10 @@ const INTEGRATIONS = [
     name: 'EnsembleData',
     description: 'Данные о трендах',
     icon: '▥',
-    fields: [{ key: 'ENSEMBLE_DATA_API_KEY', label: 'API Key' }],
+    fields: [
+      { key: 'ENSEMBLE_DATA_API_KEY', label: 'API Key' },
+      { key: 'ENSEMBLE_DATA_UNIT_PRICE', label: 'Цена за юнит ($)', secret: false },
+    ],
   },
   {
     key: 'storage',
@@ -294,9 +298,34 @@ export default function SettingsPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+
   useState(() => {
     if (user?.name) setProfileName(user.name);
   });
+
+  const handlePasswordChange = async () => {
+    if (!currentPassword) { toast.error('Введите текущий пароль'); return; }
+    if (newPassword.length < 6) { toast.error('Новый пароль — минимум 6 символов'); return; }
+    if (newPassword !== confirmPassword) { toast.error('Пароли не совпадают'); return; }
+    setPasswordSaving(true);
+    try {
+      await api.patch('/auth/password', { currentPassword, newPassword });
+      toast.success('Пароль успешно изменён');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Ошибка смены пароля');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const handleProfileSave = async () => {
     if (!profileDirty || profileSaving) return;
@@ -318,6 +347,17 @@ export default function SettingsPage() {
   const { data: prefs } = useQuery<PrefsData>({
     queryKey: ['preferences'],
     queryFn: () => api.get('/settings/preferences'),
+    retry: false,
+  });
+
+  interface BudgetData {
+    items: { name: string; amount: number }[];
+    total: number;
+    limit: number;
+  }
+  const { data: budget } = useQuery<BudgetData>({
+    queryKey: ['budget'],
+    queryFn: () => api.get('/settings/budget'),
     retry: false,
   });
 
@@ -373,36 +413,34 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2.5 mb-3.5">
             <span className="font-bold text-[15px]">Бюджет и расходы</span>
             <span className="ml-auto text-[12.5px] font-semibold text-muted-foreground">
-              $0 / $300
+              ${budget?.total?.toFixed(2) ?? '0.00'} / ${budget?.limit ?? 300}
             </span>
           </div>
           <div className="h-[10px] rounded-full bg-secondary overflow-hidden mb-3.5">
             <div
               className="h-full rounded-full bg-primary"
-              style={{ width: '0%' }}
+              style={{ width: `${budget ? Math.min((budget.total / budget.limit) * 100, 100) : 0}%` }}
             />
           </div>
-          {[
-            { name: 'Postproxy', pct: '0%', amt: '$0' },
-            { name: 'kie.ai · видео', pct: '0%', amt: '$0' },
-            { name: 'kie.ai · фото/текст', pct: '0%', amt: '$0' },
-            { name: 'EnsembleData', pct: '0%', amt: '$0' },
-          ].map((item) => (
-            <div key={item.name} className="flex items-center gap-3 py-2.5">
-              <span className="w-[150px] shrink-0 text-[13px] font-semibold">
-                {item.name}
-              </span>
-              <div className="flex-1 h-[10px] rounded-full bg-secondary overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: item.pct }}
-                />
+          {(budget?.items ?? []).map((item) => {
+            const pct = budget && budget.total > 0 ? (item.amount / budget.limit) * 100 : 0;
+            return (
+              <div key={item.name} className="flex items-center gap-3 py-2.5">
+                <span className="w-[150px] shrink-0 text-[13px] font-semibold">
+                  {item.name}
+                </span>
+                <div className="flex-1 h-[10px] rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${Math.min(pct, 100)}%` }}
+                  />
+                </div>
+                <span className="w-[60px] text-right text-[13px] font-bold">
+                  ${item.amount.toFixed(2)}
+                </span>
               </div>
-              <span className="w-[60px] text-right text-[13px] font-bold">
-                {item.amt}
-              </span>
-            </div>
-          ))}
+            );
+          })}
           <div className="flex items-center gap-2.5 mt-3.5 pt-3.5 border-t border-border">
             <Toggle on={prefs?.PREF_BUDGET_ALERT ?? true} onToggle={() => togglePref('PREF_BUDGET_ALERT')} />
             <span className="text-[13px] font-semibold">
@@ -474,6 +512,66 @@ export default function SettingsPage() {
             >
               Тёмная
             </button>
+          </div>
+
+          <div className="border-t border-border mt-4 pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
+                Смена пароля
+              </span>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              <div className="border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+                <input
+                  type={showCurrentPw ? 'text' : 'password'}
+                  placeholder="Текущий пароль"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
+                />
+                <button
+                  type="button"
+                  className="px-2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowCurrentPw(!showCurrentPw)}
+                >
+                  {showCurrentPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+              <div className="border border-border rounded-[11px] flex items-center focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+                <input
+                  type={showNewPw ? 'text' : 'password'}
+                  placeholder="Новый пароль (мин. 6 символов)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
+                />
+                <button
+                  type="button"
+                  className="px-2 text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                >
+                  {showNewPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+              <div className="border border-border rounded-[11px] focus-within:border-ring focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary)_35%,transparent)]">
+                <input
+                  type="password"
+                  placeholder="Подтверждение пароля"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full border-0 rounded-[11px] px-3 py-2 text-[13px] bg-transparent outline-none"
+                />
+              </div>
+              <button
+                onClick={handlePasswordChange}
+                disabled={passwordSaving || !currentPassword || !newPassword || !confirmPassword}
+                className="self-start px-4 py-1.5 rounded-[11px] bg-primary text-primary-foreground text-[13px] font-bold disabled:opacity-40 transition-opacity flex items-center gap-1.5"
+              >
+                {passwordSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {passwordSaving ? 'Сохранение...' : 'Сменить пароль'}
+              </button>
+            </div>
           </div>
         </div>
 

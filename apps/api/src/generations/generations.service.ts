@@ -112,6 +112,7 @@ export class GenerationsService {
           data: {
             status: 'COMPLETED',
             result: s3Urls.join('\n'),
+            cost: result.cost ?? null,
           },
         });
       } else if (dto.type === 'audio') {
@@ -122,6 +123,7 @@ export class GenerationsService {
           data: {
             status: 'COMPLETED',
             result: s3Urls.join('\n'),
+            cost: result.cost ?? null,
           },
         });
       } else {
@@ -132,6 +134,7 @@ export class GenerationsService {
             status: 'COMPLETED',
             result: result.text,
             tokens: result.tokens ?? null,
+            cost: result.cost ?? null,
           },
         });
       }
@@ -218,7 +221,7 @@ export class GenerationsService {
     prompt: string,
     generationId: string,
     params?: Record<string, any>,
-  ): Promise<{ urls: string[] }> {
+  ): Promise<{ urls: string[]; cost?: number }> {
     const input = this.buildMediaInput(model, type, prompt, params);
     this.logger.log(`createTask payload: ${JSON.stringify({ model, input })}`);
 
@@ -247,7 +250,7 @@ export class GenerationsService {
     apiKey: string,
     taskId: string,
     generationId: string,
-  ): Promise<{ urls: string[] }> {
+  ): Promise<{ urls: string[]; cost?: number }> {
     const maxAttempts = 120;
     const interval = 3000;
 
@@ -279,7 +282,7 @@ export class GenerationsService {
           const resultJson = JSON.parse(data.resultJson);
           const urls: string[] = resultJson.resultUrls || [];
           if (urls.length === 0) throw new Error('Нет URL в результате');
-          return { urls };
+          return { urls, cost: data.creditsConsumed };
         } catch (e: any) {
           throw new Error(`Ошибка парсинга результата: ${e.message}`);
         }
@@ -287,13 +290,6 @@ export class GenerationsService {
 
       if (data.state === 'failed' || data.failMsg) {
         throw new Error(data.failMsg || 'Генерация не удалась');
-      }
-
-      if (data.progress !== undefined) {
-        await this.prisma.generation.update({
-          where: { id: generationId },
-          data: { cost: data.progress },
-        });
       }
     }
 
@@ -431,7 +427,7 @@ export class GenerationsService {
     prompt: string,
     generationId: string,
     params?: Record<string, any>,
-  ): Promise<{ urls: string[] }> {
+  ): Promise<{ urls: string[]; cost?: number }> {
     const p = params || {};
     const body: Record<string, any> = {
       prompt,
@@ -477,7 +473,7 @@ export class GenerationsService {
     apiKey: string,
     taskId: string,
     generationId: string,
-  ): Promise<{ urls: string[] }> {
+  ): Promise<{ urls: string[]; cost?: number }> {
     const maxAttempts = 120;
     const interval = 5000;
 
@@ -523,7 +519,7 @@ export class GenerationsService {
             },
           },
         });
-        return { urls };
+        return { urls, cost: data.creditsConsumed };
       }
 
       if (data.status === 'FAILED' || data.status === 'ERROR') {
@@ -614,7 +610,7 @@ export class GenerationsService {
     model: string,
     prompt: string,
     params?: Record<string, any>,
-  ): Promise<{ text: string; tokens?: number }> {
+  ): Promise<{ text: string; tokens?: number; cost?: number }> {
     const maxTokens = Number(params?.max_tokens) || 8192;
     if (model.startsWith('claude')) {
       return this.callClaude(apiKey, model, prompt, maxTokens);
@@ -629,7 +625,7 @@ export class GenerationsService {
     apiKey: string,
     model: string,
     prompt: string,
-  ): Promise<{ text: string; tokens?: number }> {
+  ): Promise<{ text: string; tokens?: number; cost?: number }> {
     const res = await fetch('https://api.kie.ai/codex/v1/responses', {
       method: 'POST',
       headers: {
@@ -653,7 +649,7 @@ export class GenerationsService {
       body.output_text ||
       body.output?.map((o: any) => o.content?.map((c: any) => c.text).join('')).join('\n') ||
       JSON.stringify(body.output);
-    return { text, tokens: body.usage?.total_tokens };
+    return { text, tokens: body.usage?.total_tokens, cost: body.credits_consumed };
   }
 
   private async callClaude(
@@ -661,7 +657,7 @@ export class GenerationsService {
     model: string,
     prompt: string,
     maxTokens = 8192,
-  ): Promise<{ text: string; tokens?: number }> {
+  ): Promise<{ text: string; tokens?: number; cost?: number }> {
     const res = await fetch('https://api.kie.ai/claude/v1/messages', {
       method: 'POST',
       headers: {
@@ -685,14 +681,14 @@ export class GenerationsService {
     const text = body.content?.map((c: any) => c.text).join('') || '';
     const tokens =
       (body.usage?.input_tokens ?? 0) + (body.usage?.output_tokens ?? 0) || undefined;
-    return { text, tokens };
+    return { text, tokens, cost: body.credits_consumed };
   }
 
   private async callGemini(
     apiKey: string,
     model: string,
     prompt: string,
-  ): Promise<{ text: string; tokens?: number }> {
+  ): Promise<{ text: string; tokens?: number; cost?: number }> {
     const res = await fetch(
       `https://api.kie.ai/gemini/v1/models/${model}:generateContent`,
       {
@@ -718,6 +714,6 @@ export class GenerationsService {
     const usage = body.usageMetadata;
     const tokens =
       (usage?.promptTokenCount ?? 0) + (usage?.candidatesTokenCount ?? 0) || undefined;
-    return { text, tokens };
+    return { text, tokens, cost: body.credits_consumed };
   }
 }

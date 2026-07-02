@@ -20,7 +20,9 @@ import {
   X,
   TrendingUp,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { BrandSwitcher } from './brand-switcher';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -68,6 +70,12 @@ export function Sidebar() {
   const user = useAppStore((s) => s.user);
   const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen);
   const toggleMobileMenu = useAppStore((s) => s.toggleMobileMenu);
+
+  const { data: budget } = useQuery<{ total: number; limit: number }>({
+    queryKey: ['budget'],
+    queryFn: () => api.get('/settings/budget'),
+    retry: false,
+  });
 
   return (
     <TooltipProvider delay={0}>
@@ -190,10 +198,10 @@ export function Sidebar() {
               <span className="text-[11px] text-muted-foreground">за месяц</span>
             </div>
             <div className="text-[19px] font-extrabold mt-0.5">
-              $0 <span className="text-[12px] text-muted-foreground font-semibold">/ $300</span>
+              ${budget?.total?.toFixed(2) ?? '0.00'} <span className="text-[12px] text-muted-foreground font-semibold">/ ${budget?.limit ?? 300}</span>
             </div>
             <div className="h-[7px] rounded-full bg-background mt-2 overflow-hidden">
-              <div className="h-full bg-primary rounded-full" style={{ width: '0%' }} />
+              <div className="h-full bg-primary rounded-full" style={{ width: `${budget ? Math.min((budget.total / budget.limit) * 100, 100) : 0}%` }} />
             </div>
           </div>
         )}

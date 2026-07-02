@@ -25,11 +25,17 @@ export class TrendsService {
     const res = await fetch(`${BASE_URL}${path}?${qs}`, {
       signal: AbortSignal.timeout(30000),
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      throw new BadRequestException(`EnsembleData: HTTP ${res.status} — ${text.slice(0, 200)}`);
+    const body = await res.json().catch(() => null);
+    if (!res.ok || body?.detail) {
+      const detail = body?.detail || `HTTP ${res.status}`;
+      const msg = typeof detail === 'string' && detail.includes('Maximum requests limit')
+        ? 'Исчерпан дневной лимит запросов EnsembleData. Лимит сбрасывается в 00:00 UTC.'
+        : typeof detail === 'string' && detail.includes('email has not been verified')
+          ? 'Email не подтверждён в EnsembleData. Подтвердите email в dashboard.ensembledata.com.'
+          : typeof detail === 'string' ? detail : JSON.stringify(detail).slice(0, 200);
+      throw new BadRequestException(msg);
     }
-    return res.json();
+    return body;
   }
 
   async tiktokHashtag(name: string, cursor = '0') {
@@ -71,5 +77,13 @@ export class TrendsService {
 
   async youtubeHashtag(name: string, depth = '1') {
     return this.request('/youtube/hashtag/search', { name, depth });
+  }
+
+  async getUsedUnits(date: string) {
+    return this.request('/customer/get-used-units', { date });
+  }
+
+  async getUnitsHistory(days: string) {
+    return this.request('/customer/get-history', { days });
   }
 }

@@ -7,6 +7,7 @@ const INTEGRATION_KEYS = [
   'POSTPROXY_WEBHOOK_SECRET',
   'KIE_API_KEY',
   'ENSEMBLE_DATA_API_KEY',
+  'ENSEMBLE_DATA_UNIT_PRICE',
   'S3_ENDPOINT',
   'S3_ACCESS_KEY',
   'S3_SECRET_KEY',
@@ -258,6 +259,95 @@ export class SettingsService {
       if (e.cause?.code === 'ENOTFOUND') return { status: 'error', error: 'Endpoint недоступен' };
       return { status: 'error', error: e.message };
     }
+  }
+
+  async getBudget(): Promise<{
+    items: { name: string; amount: number }[];
+    total: number;
+    limit: number;
+    kieBalance: number | null;
+    ensembleUnits: number;
+  }> {
+    const costByType = await this.prisma.generation.groupBy({
+      by: ['type'],
+      where: { status: 'COMPLETED', cost: { not: null } },
+      _sum: { cost: true },
+    });
+
+    let textCost = 0;
+    let imageCost = 0;
+    let videoCost = 0;
+    let audioCost = 0;
+
+    for (const g of costByType) {
+      const amount = g._sum.cost ?? 0;
+      switch (g.type) {
+        case 'text': textCost = amount; break;
+        case 'image': imageCost = amount; break;
+        case 'video': videoCost = amount; break;
+        case 'audio': audioCost = amount; break;
+      }
+    }
+
+    let kieBalance: number | null = null;
+    try {
+      const kieKey = await this.prisma.setting.findUnique({
+        where: { key: 'KIE_API_KEY' },
+      });
+      if (kieKey?.value) {
+        const res = await fetch('https://api.kie.ai/api/v1/chat/credit', {
+          headers: { Authorization: `Bearer ${kieKey.value}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        const body = await res.json().catch(() => null);
+        if (body?.code === 200 && typeof body.data === 'number') {
+          kieBalance = body.data;
+        }
+      }
+    } catch {}
+
+    const edUnitPriceRow = await this.prisma.setting.findUnique({
+      where: { key: 'ENSEMBLE_DATA_UNIT_PRICE' },
+    });
+    const edUnitPrice = edUnitPriceRow ? parseFloat(edUnitPriceRow.value) || 0.00222 : 0.00222;
+
+    let edUnits = 0;
+    try {
+      const edToken = await this.prisma.setting.findUnique({
+        where: { key: 'ENSEMBLE_DATA_API_KEY' },
+      });
+      if (edToken?.value) {
+        const qs = new URLSearchParams({ days: '30', token: edToken.value });
+        const res = await fetch(`https://ensembledata.com/apis/customer/get-history?${qs}`, {
+          signal: AbortSignal.timeout(5000),
+        });
+        const body = await res.json().catch(() => null);
+        if (body?.data && Array.isArray(body.data)) {
+          edUnits = body.data.reduce((sum: number, d: any) => sum + (d.units_used ?? 0), 0);
+        }
+      }
+    } catch {}
+    const ensembleCost = edUnits * edUnitPrice;
+
+    const postproxyCost = 0;
+
+    const items = [
+      { name: 'Postproxy', amount: postproxyCost },
+      { name: 'kie.ai · видео', amount: videoCost },
+      { name: 'kie.ai · фото', amount: imageCost },
+      { name: 'kie.ai · текст', amount: textCost },
+      { name: 'kie.ai · аудио', amount: audioCost },
+      { name: 'EnsembleData', amount: ensembleCost },
+    ];
+
+    const total = items.reduce((s, i) => s + i.amount, 0);
+
+    const limitRow = await this.prisma.setting.findUnique({
+      where: { key: 'BUDGET_LIMIT' },
+    });
+    const limit = limitRow ? parseFloat(limitRow.value) || 300 : 300;
+
+    return { items, total, limit, kieBalance, ensembleUnits: edUnits };
   }
 
   private mask(val: string): string {

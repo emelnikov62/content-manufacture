@@ -28,6 +28,11 @@ export class SettingsController {
     return this.settingsService.updateIntegrations(body);
   }
 
+  @Get('budget')
+  getBudget() {
+    return this.settingsService.getBudget();
+  }
+
   @Get('preferences')
   getPreferences() {
     return this.settingsService.getPreferences();
