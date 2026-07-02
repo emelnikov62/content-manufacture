@@ -67,6 +67,9 @@ export default function ComposerPage() {
   const [imageGenOpen, setImageGenOpen] = useState(false);
   const [videoGenOpen, setVideoGenOpen] = useState(false);
   const [hashtagsLoading, setHashtagsLoading] = useState(false);
+  const [rewriteOpen, setRewriteOpen] = useState(false);
+  const [rewriteNetwork, setRewriteNetwork] = useState<string | null>(null);
+  const [rewriteLoading, setRewriteLoading] = useState(false);
 
   const { data: existingPost } = useQuery<any>({
     queryKey: ['post', editId],
@@ -297,6 +300,42 @@ export default function ComposerPage() {
     }
   }
 
+  async function handleRewrite() {
+    if (!body.trim() || !rewriteNetwork || !currentBrandId) return;
+    const meta = NETWORK_META[rewriteNetwork];
+    if (!meta) return;
+    setRewriteOpen(false);
+    setRewriteLoading(true);
+    try {
+      const gen = await api.post<{ id: string }>('/generations', {
+        brandId: currentBrandId,
+        model: 'gemini-3-5-flash',
+        modelName: 'Gemini 3.5 Flash',
+        provider: 'Google',
+        type: 'text',
+        prompt: `Перепиши следующий текст поста для социальной сети ${meta.label}. Учти особенности платформы, ограничение по длине (максимум ${meta.maxText} символов), стиль и тон, принятый в ${meta.label}. В конце добавь релевантные хэштеги. Верни ТОЛЬКО готовый текст поста с хэштегами, без пояснений и комментариев.\n\nИсходный текст:\n${body}`,
+        params: {},
+      });
+      const poll = async (): Promise<string> => {
+        const data = await api.get<{ status: string; result: string | null; error: string | null }>(`/generations/${gen.id}`);
+        if (data.status === 'COMPLETED' && data.result) return data.result;
+        if (data.status === 'ERROR') throw new Error(data.error || 'Ошибка генерации');
+        await new Promise((r) => setTimeout(r, 2000));
+        return poll();
+      };
+      const result = await poll();
+      setBody(result.trim());
+      toast.success(`Текст переписан под ${meta.label}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Не удалось переписать текст');
+    } finally {
+      setRewriteLoading(false);
+      setRewriteNetwork(null);
+    }
+  }
+
+  const anyAiLoading = hashtagsLoading || rewriteLoading;
+
   const selectedNetworks = [
     ...new Set(
       accounts.filter((a) => selectedAccounts.includes(a.id)).map((a) => a.network),
@@ -432,10 +471,10 @@ export default function ComposerPage() {
 
             {/* AI action buttons */}
             <div className="flex gap-2 mt-2.5">
-              <button onClick={() => setTextGenOpen(true)} disabled={hashtagsLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
+              <button onClick={() => setTextGenOpen(true)} disabled={anyAiLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
                 ✦ Сгенерировать текст
               </button>
-              <button onClick={handleHashtags} disabled={hashtagsLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
+              <button onClick={handleHashtags} disabled={anyAiLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
                 {hashtagsLoading ? (
                   <>
                     <span className="w-3.5 h-3.5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
@@ -445,8 +484,22 @@ export default function ComposerPage() {
                   'Подобрать хэштеги'
                 )}
               </button>
-              <button disabled={hashtagsLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
-                Переписать под сеть
+              <button
+                onClick={() => {
+                  if (!body.trim()) { toast.error('Введите текст поста, чтобы переписать'); return; }
+                  setRewriteOpen(true);
+                }}
+                disabled={anyAiLoading}
+                className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {rewriteLoading ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+                    Генерация…
+                  </>
+                ) : (
+                  'Переписать под сеть'
+                )}
               </button>
             </div>
 
@@ -610,14 +663,14 @@ export default function ComposerPage() {
                 <button
                   className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none"
                   onClick={() => setMediaPickerOpen(true)}
-                  disabled={hashtagsLoading}
+                  disabled={anyAiLoading}
                 >
                   + Из библиотеки
                 </button>
                 <button
                   className="h-10 inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none"
                   onClick={() => document.getElementById('composer-upload')?.click()}
-                  disabled={hashtagsLoading}
+                  disabled={anyAiLoading}
                 >
                   <Upload className="h-4 w-4" />
                   Загрузить
@@ -724,10 +777,10 @@ export default function ComposerPage() {
             <div className="text-[11px] font-bold tracking-wide text-muted-foreground uppercase mb-2.5">
               AI‑помощник
             </div>
-            <button onClick={() => setImageGenOpen(true)} disabled={hashtagsLoading} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none mb-2">
+            <button onClick={() => setImageGenOpen(true)} disabled={anyAiLoading} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none mb-2">
               ✦ Сгенерировать изображение
             </button>
-            <button onClick={() => setVideoGenOpen(true)} disabled={hashtagsLoading} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
+            <button onClick={() => setVideoGenOpen(true)} disabled={anyAiLoading} className="w-full inline-flex items-center justify-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
               🎬 Сгенерировать видео для Reels
             </button>
           </div>
@@ -765,7 +818,7 @@ export default function ComposerPage() {
             <button
               className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-primary text-primary bg-card hover:bg-primary/10 transition-colors hover:shadow-card disabled:opacity-50"
               onClick={() => cancelDeleteMutation.mutate(editId!)}
-              disabled={cancelDeleteMutation.isPending || hashtagsLoading}
+              disabled={cancelDeleteMutation.isPending || anyAiLoading}
             >
               Отменить удаление
             </button>
@@ -774,14 +827,14 @@ export default function ComposerPage() {
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => { setScheduleMode('update'); setScheduleOpen(true); }}
-                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending || hashtagsLoading}
+                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending || anyAiLoading}
               >
                 📅 Запланировать обновление
               </button>
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-destructive text-destructive bg-card hover:bg-destructive/10 transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => { setScheduleMode('delete'); setScheduleOpen(true); }}
-                disabled={publishMutation.isPending || hashtagsLoading}
+                disabled={publishMutation.isPending || anyAiLoading}
               >
                 🗑 Запланировать удаление
               </button>
@@ -804,14 +857,14 @@ export default function ComposerPage() {
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => handleSubmit('draft')}
-                disabled={!body || publishMutation.isPending || hashtagsLoading}
+                disabled={!body || publishMutation.isPending || anyAiLoading}
               >
                 Сохранить
               </button>
               <button
                 className="inline-flex items-center gap-2 font-bold text-[13px] rounded-xl px-4 py-2.5 border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50"
                 onClick={() => { setScheduleMode('publish'); setScheduleOpen(true); }}
-                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending || hashtagsLoading}
+                disabled={!body || selectedAccounts.length === 0 || publishMutation.isPending || anyAiLoading}
               >
                 📅 Запланировать
               </button>
@@ -936,6 +989,48 @@ export default function ComposerPage() {
               })}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Rewrite for network dialog */}
+      <Dialog open={rewriteOpen} onOpenChange={setRewriteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Переписать под сеть</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <p className="text-[13px] text-muted-foreground">
+              Выберите социальную сеть, под которую нужно адаптировать текст:
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(NETWORK_META).map(([key, meta]) => (
+                <button
+                  key={key}
+                  onClick={() => setRewriteNetwork(key)}
+                  className={`flex items-center gap-[7px] px-[11px] py-[7px] rounded-full text-[12.5px] font-semibold border transition-colors ${
+                    rewriteNetwork === key
+                      ? 'border-primary bg-primary/10'
+                      : 'border-border bg-card hover:bg-secondary'
+                  }`}
+                >
+                  <span
+                    className="w-[20px] h-[20px] rounded-[6px] grid place-items-center text-white text-[10px] shrink-0"
+                    style={{ background: meta.color }}
+                  >
+                    <NetworkIcon network={key} className="w-[12px] h-[12px]" />
+                  </span>
+                  {meta.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleRewrite}
+              disabled={!rewriteNetwork}
+              className="w-full inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground font-bold text-[13px] rounded-xl px-4 py-2.5 hover:brightness-95 transition-all disabled:opacity-50"
+            >
+              Переписать
+            </button>
+          </div>
         </DialogContent>
       </Dialog>
 
