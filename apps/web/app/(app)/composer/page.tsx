@@ -66,6 +66,7 @@ export default function ComposerPage() {
   const [textGenOpen, setTextGenOpen] = useState(false);
   const [imageGenOpen, setImageGenOpen] = useState(false);
   const [videoGenOpen, setVideoGenOpen] = useState(false);
+  const [hashtagsLoading, setHashtagsLoading] = useState(false);
 
   const { data: existingPost } = useQuery<any>({
     queryKey: ['post', editId],
@@ -262,6 +263,40 @@ export default function ComposerPage() {
     publishMutation.mutate({ payload: data, mode });
   }
 
+  async function handleHashtags() {
+    if (!body.trim()) {
+      toast.error('Введите текст поста, чтобы подобрать хэштеги');
+      return;
+    }
+    if (!currentBrandId) return;
+    setHashtagsLoading(true);
+    try {
+      const gen = await api.post<{ id: string }>('/generations', {
+        brandId: currentBrandId,
+        model: 'gemini-3-5-flash',
+        modelName: 'Gemini 3.5 Flash',
+        provider: 'Google',
+        type: 'text',
+        prompt: `Подбери релевантные хэштеги для следующего поста в социальных сетях. Верни ТОЛЬКО хэштеги через пробел, без нумерации, без пояснений, без другого текста.\n\nТекст поста:\n${body}`,
+        params: {},
+      });
+      const poll = async (): Promise<string> => {
+        const data = await api.get<{ status: string; result: string | null; error: string | null }>(`/generations/${gen.id}`);
+        if (data.status === 'COMPLETED' && data.result) return data.result;
+        if (data.status === 'ERROR') throw new Error(data.error || 'Ошибка генерации');
+        await new Promise((r) => setTimeout(r, 2000));
+        return poll();
+      };
+      const hashtags = await poll();
+      setBody((prev) => prev + '\n\n' + hashtags.trim());
+      toast.success('Хэштеги добавлены');
+    } catch (err: any) {
+      toast.error(err?.message || 'Не удалось подобрать хэштеги');
+    } finally {
+      setHashtagsLoading(false);
+    }
+  }
+
   const selectedNetworks = [
     ...new Set(
       accounts.filter((a) => selectedAccounts.includes(a.id)).map((a) => a.network),
@@ -397,13 +432,20 @@ export default function ComposerPage() {
 
             {/* AI action buttons */}
             <div className="flex gap-2 mt-2.5">
-              <button onClick={() => setTextGenOpen(true)} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
+              <button onClick={() => setTextGenOpen(true)} disabled={hashtagsLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
                 ✦ Сгенерировать текст
               </button>
-              <button className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
-                Подобрать хэштеги
+              <button onClick={handleHashtags} disabled={hashtagsLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
+                {hashtagsLoading ? (
+                  <>
+                    <span className="w-3.5 h-3.5 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+                    Подбор…
+                  </>
+                ) : (
+                  'Подобрать хэштеги'
+                )}
               </button>
-              <button className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card">
+              <button disabled={hashtagsLoading} className="inline-flex items-center gap-1.5 font-bold text-[12px] rounded-[10px] px-3 py-[7px] border border-border bg-card hover:bg-secondary transition-colors hover:shadow-card disabled:opacity-50 disabled:pointer-events-none">
                 Переписать под сеть
               </button>
             </div>
